@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Barbero {
+  id        Int              @id @default(autoincrement())
+  nombre    String
+  // Número de WhatsApp en formato internacional sin "+" (ej. 573001234567).
+  // Si escribe al agente, el agente lo atiende en modo barbero.
+  telefono  String?          @unique
+  activo    Boolean          @default(true)
+  horarios  HorarioBarbero[]
+  bloqueos  BloqueoHorario[]
+  citas     Cita[]
+}
+
+model Servicio {
+  id          Int     @id @default(autoincrement())
+  nombre      String
+  descripcion String  @default("")
+  duracionMin Int
+  precio      Int
+  imagenUrl   String?
+  activo      Boolean @default(true)
+  citas       Cita[]
+}
+
+// Jornada laboral de un barbero por día de la semana (0 = domingo ... 6 = sábado).
+model HorarioBarbero {
+  id         Int     @id @default(autoincrement())
+  barberoId  Int
+  barbero    Barbero @relation(fields: [barberoId], references: [id])
+  diaSemana  Int
+  horaInicio String // "09:00" hora local
+  horaFin    String // "19:00" hora local
+}
+
+// Tiempo en que el barbero no atiende (almuerzo, diligencia, día libre).
+model BloqueoHorario {
+  id        Int      @id @default(autoincrement())
+  barberoId Int
+  barbero   Barbero  @relation(fields: [barberoId], references: [id])
+  inicio    DateTime
+  fin       DateTime
+  motivo    String   @default("")
+}
+
+model Cliente {
+  id                       Int       @id @default(autoincrement())
+  nombre                   String
+  telefono                 String    @unique
+  fechaNacimiento          DateTime?
+  registrado               Boolean   @default(false)
+  aceptaDatos              Boolean   @default(false)
+  descuentoBienvenidaUsado Boolean   @default(false)
+  creadoEn                 DateTime  @default(now())
+  citas                    Cita[]
+}
+
+enum EstadoCita {
+  AGENDADA
+  CANCELADA
+  COMPLETADA
+  NO_ASISTIO
+}
+
+enum CanalCita {
+  WEB
+  WHATSAPP
+  PANEL
+}
+
+model Cita {
+  id          Int        @id @default(autoincrement())
+  clienteId   Int
+  cliente     Cliente    @relation(fields: [clienteId], references: [id])
+  barberoId   Int
+  barbero     Barbero    @relation(fields: [barberoId], references: [id])
+  servicioId  Int
+  servicio    Servicio   @relation(fields: [servicioId], references: [id])
+  inicio      DateTime
+  fin         DateTime
+  estado      EstadoCita @default(AGENDADA)
+  canal       CanalCita
+  precio      Int
+  descuentoPct Int       @default(0)
+  notas       String     @default("")
+  creadoEn    DateTime   @default(now())
+
+  @@index([barberoId, inicio])
+}

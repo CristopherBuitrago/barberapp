@@ -1,0 +1,15 @@
+# Base de datos local para desarrollo. Funciona con docker compose o podman compose.
+services:
+  postgres:
+    image: docker.io/library/postgres:17
+    environment:
+      POSTGRES_USER: barberia
+      POSTGRES_PASSWORD: barberia
+      POSTGRES_DB: barberia
+    ports:
+      - "5433:5432"
+    volumes:
+      - barberia-datos:/var/lib/postgresql/data
+
+volumes:
+  barberia-datos:
