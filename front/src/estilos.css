@@ -82,7 +82,7 @@ a { color: var(--azul); }
   min-height: 100vh; background: var(--db-negro);
   display: flex; flex-direction: column; color: #000;
 }
-.cabecera { display: flex; justify-content: center; flex-shrink: 0; }
+.cabecera { display: flex; justify-content: center; flex-shrink: 0; position: relative; }
 .logo { display: block; zoom: var(--db-escala); height: 170px; padding-top: 7px; }
 .logo img { display: block; }
 
@@ -93,7 +93,7 @@ a { color: var(--azul); }
   padding: 20px 18px 96px; display: flex; flex-direction: column; gap: 21px;
 }
 .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(283px, 1fr)); gap: 21px; }
-.contenido-interior > .tarjeta.paso, .contenido-interior > .aviso-descuento:not(:first-child) {
+.contenido-interior > .tarjeta.paso, .contenido-interior > .tarjeta.perfil, .contenido-interior > .aviso-descuento:not(:first-child) {
   width: 100%; max-width: 480px; margin: 0 auto;
 }
 
@@ -239,10 +239,54 @@ a { color: var(--azul); }
 .reservado .descripcion { margin: 0 0 12px; }
 .enlaces { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; }
 
+/* Perfil: iniciar sesión, crear cuenta y datos (Figma "iPhone 16 - 7/8/9") */
+.pagina .tarjeta.perfil { display: flex; flex-direction: column; min-height: 353px; padding: 21px 15px 17px 17px; }
+.perfil h1 { font-size: 24px; font-weight: 700; color: var(--db-texto); margin: 0 6px 22px; max-width: 230px; line-height: normal; }
+.campo-perfil { display: flex; flex-direction: column; margin-bottom: 6px; }
+.campo-perfil span { font-size: 10px; font-weight: 700; color: #afafaf; }
+.campo-perfil input {
+  height: 22px; border: 0; border-radius: 5px; background: var(--db-panel); padding: 0 6px;
+  font-family: inherit; font-size: 11px; font-weight: 700; color: #534c4c;
+}
+.campo-perfil input[type="password"] { font-size: 16px; }
+.campo-perfil input[readonly] { color: #8a8585; cursor: default; }
+.campo-perfil input:focus { outline: 2px solid var(--db-azul-paso); outline-offset: 0; }
+.pagina .boton.ancho { display: block; width: 100%; height: 22px; line-height: 22px; margin-top: 20px; }
+.perfil-botones { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.perfil-botones .boton.ancho { margin-top: 0; }
+.perfil-pie { font-size: 10px; font-weight: 700; color: #534c4c; text-align: center; margin: 4px auto 0; max-width: 140px; }
+.perfil-pie a { color: var(--db-azul-paso); text-decoration: none; }
+.perfil .casilla { margin-top: 6px; }
+
+/* Menú (izquierda) y perfil (derecha) en la cabecera */
+.cabecera-botones {
+  position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between;
+  padding: calc(13px * var(--db-escala)) calc(11px * var(--db-escala)); pointer-events: none;
+}
+.cabecera-botones .boton-icono { zoom: var(--db-escala); pointer-events: auto; }
+.boton-icono { border: 0; background: none; padding: 0; cursor: pointer; display: grid; place-items: center; border-radius: 50%; }
+.boton-icono:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.boton-icono.oscuro img { filter: invert(1); }
+
+.menu-fondo { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 20; }
+.menu {
+  position: absolute; top: 0; bottom: 0; left: 0; width: min(85vw, calc(240px * var(--db-escala)));
+  background: #fff; box-shadow: 0 0 12px rgb(0 0 0 / 35%); display: flex; flex-direction: column;
+  font-family: "Albert Sans", system-ui, sans-serif;
+}
+.menu > * { zoom: var(--db-escala); }
+.menu-cabeza { display: flex; justify-content: space-between; align-items: center; padding: 14px 12px 12px 16px; border-bottom: 1px solid var(--db-borde-recuadro); }
+.menu-cabeza h2 { font-size: 14px; font-weight: 700; color: var(--db-texto); }
+.menu a, .menu-salir {
+  display: block; padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--db-texto); text-decoration: none;
+  border: 0; border-bottom: 1px solid #ececec; background: none; text-align: left; font-family: inherit; cursor: pointer;
+}
+.menu a:hover, .menu-salir:hover { background: #f4f4f5; }
+.menu-salir { color: var(--db-rojo); }
+
 /* ---------- Panel de la barbería ---------- */
-.panel-ingreso { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--negro); }
-.panel-ingreso .tarjeta { width: 100%; max-width: 360px; }
-.panel-ingreso .boton { margin-top: 16px; }
+.panel-barra .boton-icono img { width: 28px; height: 28px; }
+.panel-barra > .boton-icono:last-child { margin-left: auto; }
 
 .panel { min-height: 100vh; display: flex; flex-direction: column; }
 .panel-barra { background: var(--negro); color: #fff; display: flex; align-items: center; gap: 16px; padding: 12px 16px; }

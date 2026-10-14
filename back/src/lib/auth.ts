@@ -22,11 +22,3 @@ export const soloAgente: RequestHandler = (req, res, next) => {
   next();
 };
 
-/** Solo el panel de la barbería (header x-panel-clave). */
-export const soloPanel: RequestHandler = (req, res, next) => {
-  if (!iguales(req.header("x-panel-clave"), config.panelClave)) {
-    res.status(401).json({ error: "Clave del panel incorrecta" });
-    return;
-  }
-  next();
-};

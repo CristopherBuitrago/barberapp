@@ -188,7 +188,7 @@ export async function citasProximasDeCliente(telefono: string) {
     where: {
       cliente: { telefono: normalizarTelefono(telefono) },
       estado: "AGENDADA",
-      inicio: { gte: new Date() },
+      fin: { gt: new Date() },
     },
     include: incluirDetalle,
     orderBy: { inicio: "asc" },

@@ -2,16 +2,21 @@ import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { barberia } from "../api";
 import { duracion, miles } from "../formato";
+import { BotonMenu, BotonPerfil } from "./Navegacion";
 import logo from "../assets/figma/logo.png";
 import check from "../assets/figma/check.svg";
 import reloj from "../assets/figma/reloj.svg";
 import pesos from "../assets/figma/pesos.svg";
 
-/** Encabezado negro con el logo y el panel gris redondeado donde va el contenido. */
-export function Marco({ children }: { children: ReactNode }) {
+/** Encabezado negro con menú, logo y perfil, y el panel gris redondeado donde va el contenido. */
+export function Marco({ children, enPerfil = false }: { children: ReactNode; enPerfil?: boolean }) {
   return (
     <div className="pagina">
       <header className="cabecera">
+        <div className="cabecera-botones">
+          <BotonMenu />
+          <BotonPerfil enPerfil={enPerfil} />
+        </div>
         <Link to="/" className="logo">
           <img src={logo} alt={barberia.nombre} width={159} height={159} />
         </Link>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, barberia, type Servicio } from "../api";
 import { esActiva, useCitaGuardada } from "../citaGuardada";
+import { useSesion } from "../sesion";
 import { Duracion, Marco, Precio } from "../componentes/Marco";
 import { horaCompacta } from "../formato";
 
@@ -10,6 +11,7 @@ export function Catalogo() {
   const [error, setError] = useState("");
   const navegar = useNavigate();
   const { cita } = useCitaGuardada();
+  const { usuario } = useSesion();
   const activa = esActiva(cita) ? cita : null;
 
   useEffect(() => {
@@ -23,9 +25,11 @@ export function Catalogo() {
           Ya tienes una cita agendada. Para reservar otra, cancélala o espera a que pase.
         </p>
       ) : (
-        <Link to="/registro" className="aviso-descuento">
-          🎁 Regístrate y llévate <strong>{barberia.descuentoRegistroPct}% de descuento</strong> en tu próximo corte
-        </Link>
+        !usuario && (
+          <Link to="/perfil/registro" state={{ desde: "/" }} className="aviso-descuento">
+            🎁 Regístrate y llévate <strong>{barberia.descuentoRegistroPct}% de descuento</strong> en tu próximo corte
+          </Link>
+        )
       )}
 
       {error && <p className="error">No pudimos cargar los servicios: {error}</p>}
@@ -76,7 +80,7 @@ export function Catalogo() {
 
       {barberia.whatsapp && (
         <a className="boton whatsapp flotante" href={`https://wa.me/${barberia.whatsapp}`} target="_blank" rel="noreferrer">
-          💬 Agenda por WhatsApp
+          Agenda por WhatsApp
         </a>
       )}
     </Marco>

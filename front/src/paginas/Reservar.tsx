@@ -3,8 +3,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Barbero, type HoraDisponible, type Servicio } from "../api";
 import { almacen } from "../almacen";
 import { esActiva, useCitaGuardada } from "../citaGuardada";
+import { useSesion } from "../sesion";
 import { Duracion, Marco, Pasos, Precio } from "../componentes/Marco";
-import { DIAS_CORTOS, MESES, diaSemana, fechaLarga, hora, hora24, horaCompacta, hoy, inicioSemana, sumarDias } from "../formato";
+import { DIAS_CORTOS, MESES, diaSemana, fechaLarga, hora, hora24, horaCompacta, hoy, inicioSemana, sumarDias, telefonoLocal } from "../formato";
 import flechaIzq from "../assets/figma/flecha-izq.svg";
 import flechaDer from "../assets/figma/flecha-der.svg";
 
@@ -38,7 +39,10 @@ export function Reservar() {
   const [elegida, setElegida] = useState<HoraDisponible | null>(null);
   const [proxima, setProxima] = useState<string | null>(null);
 
-  const recordado = almacen.cliente();
+  // Con cuenta de cliente la cita va a su nombre y teléfono (el back los toma de la sesión).
+  const { usuario } = useSesion();
+  const conCuenta = usuario?.rol === "CLIENTE";
+  const recordado = conCuenta && usuario ? { nombre: usuario.nombre, telefono: telefonoLocal(usuario.telefono) } : almacen.cliente();
   const [nombre, setNombre] = useState(recordado?.nombre ?? "");
   const [telefono, setTelefono] = useState(recordado?.telefono ?? "");
   const [aceptaDatos, setAceptaDatos] = useState(false);
@@ -311,7 +315,9 @@ export function Reservar() {
               <div className="recuadro-cuerpo">
                 <h2 className="suave">Contacto</h2>
                 <p className="texto-contacto">
-                  Te confirmamos la cita por WhatsApp. Si te registraste, el descuento se aplica automáticamente.
+                  {conCuenta
+                    ? "Reservas con tu cuenta. Te confirmamos la cita por WhatsApp."
+                    : "Te confirmamos la cita por WhatsApp. Si te registraste, el descuento se aplica automáticamente."}
                 </p>
                 <input
                   className="entrada"
@@ -320,6 +326,7 @@ export function Reservar() {
                   placeholder="Nombre"
                   aria-label="Nombre"
                   autoComplete="name"
+                  readOnly={conCuenta}
                 />
                 <input
                   className="entrada"
@@ -329,11 +336,14 @@ export function Reservar() {
                   aria-label="Teléfono (WhatsApp)"
                   inputMode="tel"
                   autoComplete="tel"
+                  readOnly={conCuenta}
                 />
-                <label className="casilla">
-                  <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
-                  Autorizo el tratamiento de mis datos personales para gestionar mis citas (Ley 1581 de 2012).
-                </label>
+                {!conCuenta && (
+                  <label className="casilla">
+                    <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
+                    Autorizo el tratamiento de mis datos personales para gestionar mis citas (Ley 1581 de 2012).
+                  </label>
+                )}
               </div>
             </div>
 
@@ -342,7 +352,7 @@ export function Reservar() {
               <button className="boton peligro" onClick={() => setPaso(1)}>Atrás</button>
               <button
                 className="boton exito"
-                disabled={enviando || !nombre.trim() || telefono.replace(/\D/g, "").length < 7 || !aceptaDatos}
+                disabled={enviando || !nombre.trim() || telefono.replace(/\D/g, "").length < 7 || !(aceptaDatos || conCuenta)}
                 onClick={confirmar}
               >
                 {enviando ? "Reservando…" : "Confirmar"}

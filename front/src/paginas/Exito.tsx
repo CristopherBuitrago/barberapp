@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, barberia } from "../api";
 import { esActiva, useCitaGuardada } from "../citaGuardada";
+import { useSesion } from "../sesion";
 import { Marco } from "../componentes/Marco";
 import { descargarIcs, fechaLarga, hora, precio } from "../formato";
 import checkGrande from "../assets/figma/check-grande.svg";
 
 export function Exito() {
   const { cita, guardar } = useCitaGuardada();
+  const { usuario } = useSesion();
   const [cancelando, setCancelando] = useState(false);
   const [error, setError] = useState("");
 
@@ -96,8 +98,8 @@ export function Exito() {
         </div>
       </section>
 
-      {cita.descuentoPct === 0 && (
-        <Link to="/registro" className="aviso-descuento">
+      {cita.descuentoPct === 0 && !usuario && (
+        <Link to="/perfil/registro" className="aviso-descuento">
           🎁 Regístrate y te damos <strong>{barberia.descuentoRegistroPct}%</strong> en tu próximo corte
         </Link>
       )}

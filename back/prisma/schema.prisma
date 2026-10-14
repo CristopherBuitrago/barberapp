@@ -14,7 +14,11 @@ model Barbero {
   // Si escribe al agente, el agente lo atiende en modo barbero.
   telefono  String?          @unique
   activo    Boolean          @default(true)
+  // Cuenta para el panel: se entra con el teléfono y esta contraseña (hash scrypt).
+  claveHash String?
+  esAdmin   Boolean          @default(false)
   horarios  HorarioBarbero[]
+  sesiones  Sesion[]
   bloqueos  BloqueoHorario[]
   citas     Cita[]
 }
@@ -58,8 +62,24 @@ model Cliente {
   registrado               Boolean   @default(false)
   aceptaDatos              Boolean   @default(false)
   descuentoBienvenidaUsado Boolean   @default(false)
+  // Contraseña de la cuenta web (hash scrypt). Null si solo ha reservado sin cuenta.
+  claveHash                String?
   creadoEn                 DateTime  @default(now())
   citas                    Cita[]
+  sesiones                 Sesion[]
+}
+
+// Sesión iniciada en la web: de un cliente o de alguien del equipo (barbero/admin).
+model Sesion {
+  id        Int      @id @default(autoincrement())
+  // SHA-256 del token que guarda el navegador; el token en claro nunca se guarda.
+  tokenHash String   @unique
+  clienteId Int?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  barberoId Int?
+  barbero   Barbero? @relation(fields: [barberoId], references: [id], onDelete: Cascade)
+  expira    DateTime
+  creadaEn  DateTime @default(now())
 }
 
 enum EstadoCita {

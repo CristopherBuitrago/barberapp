@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.js";
-import { config } from "../lib/config.js";
 import { esAgente } from "../lib/auth.js";
+import { sesionDe } from "../lib/sesion.js";
 import { ErrorNegocio } from "../lib/errores.js";
-import { normalizarTelefono } from "../lib/telefono.js";
 import { consultarDisponibilidad } from "../servicios/disponibilidad.js";
 import { cancelarCita, consultarCita, crearCita, reprogramarCita } from "../servicios/citas.js";
 import { fecha, id, instante, nuevaCita, telefono } from "./esquemas.js";
@@ -36,6 +35,11 @@ rutasPublicas.get("/disponibilidad", async (req, res) => {
 rutasPublicas.post("/citas", async (req, res) => {
   const datos = nuevaCita.parse(req.body);
   const canal = esAgente(req.header("x-api-key")) ? "WHATSAPP" : "WEB";
+  // Con sesión de cliente, la cita es suya: se usan su nombre y teléfono, no los del formulario.
+  const sesion = sesionDe(res);
+  if (canal === "WEB" && sesion?.rol === "CLIENTE") {
+    datos.cliente = { nombre: sesion.cliente.nombre, telefono: sesion.cliente.telefono, aceptaDatos: true };
+  }
   if (canal === "WEB" && !datos.cliente.aceptaDatos) {
     throw new ErrorNegocio(400, "Debes aceptar el tratamiento de datos personales");
   }
@@ -58,33 +62,4 @@ rutasPublicas.post("/citas/:id/reprogramar", async (req, res) => {
   const citaId = id.parse(req.params.id);
   const body = z.object({ telefono, inicio: instante }).parse(req.body);
   res.json(await reprogramarCita(citaId, body.telefono, body.inicio));
-});
-
-/** Registro en la plataforma: da el descuento de bienvenida para la próxima cita. */
-rutasPublicas.post("/clientes/registro", async (req, res) => {
-  const body = z
-    .object({
-      nombre: z.string().trim().min(1).max(80),
-      telefono,
-      fechaNacimiento: fecha.optional(),
-      aceptaDatos: z.literal(true, { error: "Debes aceptar el tratamiento de datos" }),
-    })
-    .parse(req.body);
-
-  const tel = normalizarTelefono(body.telefono);
-  const datos = {
-    nombre: body.nombre,
-    registrado: true,
-    aceptaDatos: true,
-    fechaNacimiento: body.fechaNacimiento ? new Date(`${body.fechaNacimiento}T00:00:00Z`) : null,
-  };
-  const cliente = await db.cliente.upsert({
-    where: { telefono: tel },
-    create: { telefono: tel, ...datos },
-    update: datos,
-  });
-  res.json({
-    nombre: cliente.nombre,
-    descuentoPct: cliente.descuentoBienvenidaUsado ? 0 : config.descuentoRegistroPct,
-  });
 });

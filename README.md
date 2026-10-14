@@ -35,6 +35,7 @@ cp .env.example .env          # ajustar claves
 npm install
 npx prisma db push            # crea las tablas
 npm run db:seed               # servicios y barberos de ejemplo
+npm run equipo:cuenta -- --nombre Diego --telefono 3001234567 --clave "una-clave" --admin   # cuenta para el panel
 npm run dev
 
 # 3. Front (otra terminal)
@@ -94,6 +95,24 @@ La web del cliente sigue el archivo de Figma [Diego Barber](https://www.figma.co
 - Una cita activa por cliente: con una cita agendada, su tarjeta en el catálogo muestra la fecha y el botón naranja **AGENDADA** (lleva al detalle para cancelarla) y los demás *Reservar* quedan en gris. El back también lo valida para la web y WhatsApp; el panel sí puede agendar varias.
 - Lo que la web ya tenía y no está en el diseño se mantuvo con el mismo estilo: aviso de descuento, botón de WhatsApp, elegir barbero, autorización de datos (Ley 1581), agregar al calendario y cancelar la cita.
 
+## Cuentas e inicio de sesión
+
+Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesión) y `2010:101` (crear cuenta).
+
+- Todos entran con **teléfono + contraseña** en `/perfil`. Si el teléfono es de un barbero con cuenta, entra al panel; si no, es un cliente.
+- Cabecera: menú a la izquierda (Panel, Servicios, Mi cita, Mi perfil, Crear cuenta, Cerrar sesión, según quién entró) y perfil a la derecha. Dentro del perfil el ícono se vuelve una **X** que regresa a donde estaba (el catálogo o el panel).
+- **Clientes**: se registran en `/perfil/registro` (nombres, teléfono, contraseña, fecha de nacimiento y autorización de datos) y reciben el descuento de bienvenida. Si ya habían reservado sin cuenta, la cuenta se une a su ficha. Con sesión, la reserva usa su nombre y teléfono y el catálogo trae su cita activa del servidor (también las de WhatsApp). Se puede seguir reservando sin cuenta.
+- **Barberos y admin**: el panel ya no usa una clave compartida; pide la sesión de alguien del equipo. Su perfil no tiene fecha de nacimiento y el botón azul vuelve al panel. La cuenta se crea o cambia con:
+
+  ```bash
+  cd back
+  npm run equipo:cuenta -- --nombre Diego --telefono 3001234567 --clave "una-clave" [--admin]
+  ```
+
+  Ese teléfono es también el que el agente de WhatsApp atiende en "modo barbero".
+- Contraseñas con scrypt; la sesión es un token aleatorio de 30 días del que la base solo guarda el SHA-256.
+- El teléfono no se edita desde el perfil (es con lo que se inicia sesión).
+
 ## API del back
 
 | Ruta | Quién | Para qué |
@@ -103,14 +122,14 @@ La web del cliente sigue el archivo de Figma [Diego Barber](https://www.figma.co
 | `POST /api/citas` | público / agente | reservar (web exige aceptar datos; máximo una cita activa por cliente) |
 | `GET /api/citas/:id?telefono` | público (con teléfono del dueño) | estado actual de la cita |
 | `POST /api/citas/:id/cancelar`, `/reprogramar` | público (con teléfono del dueño) | gestionar cita |
-| `POST /api/clientes/registro` | público | registro + descuento |
+| `POST /api/cuenta/login`, `/registro`, `/logout` | público / con sesión | iniciar sesión, crear cuenta de cliente (+ descuento), cerrar sesión |
+| `GET` y `PATCH /api/cuenta/yo`, `GET /api/cuenta/yo/cita-activa` | con sesión (`Authorization: Bearer`) | datos del perfil y cita activa del cliente |
 | `/api/interno/*` | agente (`x-api-key`) | contacto por teléfono, agenda, bloqueos |
-| `/api/panel/*` | panel (`x-panel-clave`) | calendario, estados, citas presenciales, bloqueos |
+| `/api/panel/*` | sesión de barbero o admin | calendario, estados, citas presenciales, bloqueos |
 
 ## Pendiente (siguientes fases)
 
 - Recordatorios automáticos 24 h / 2 h antes (requiere plantillas aprobadas en Meta).
 - Resumen diario por WhatsApp a cada barbero.
 - Reportes, productos y segmentación de clientes (quién compra productos de cabello).
-- Usuarios por barbero en el panel (hoy es una sola clave compartida).
 - Persistir conversaciones del agente en base de datos.

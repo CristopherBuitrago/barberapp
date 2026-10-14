@@ -17,6 +17,11 @@ export function miles(valor: number): string {
   return valor.toLocaleString("es-CO");
 }
 
+/** "573001234567" → "3001234567" (celulares colombianos); otros quedan igual. */
+export function telefonoLocal(telefono: string): string {
+  return telefono.length === 12 && telefono.startsWith("573") ? telefono.slice(2) : telefono;
+}
+
 /** "30min", "1h", "1h 30min". */
 export function duracion(minutos: number): string {
   const h = Math.floor(minutos / 60);

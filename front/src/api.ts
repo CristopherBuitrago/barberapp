@@ -1,3 +1,4 @@
+import { almacen } from "./almacen";
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
 export const barberia = {
@@ -58,14 +59,34 @@ export interface NuevaCita {
   cliente: { nombre: string; telefono: string; aceptaDatos: boolean };
 }
 
-async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown, headers: Record<string, string> = {}): Promise<T> {
+export type Rol = "CLIENTE" | "BARBERO" | "ADMIN";
+
+export interface Usuario {
+  rol: Rol;
+  nombre: string;
+  telefono: string;
+  /** "YYYY-MM-DD"; siempre null para el equipo. */
+  fechaNacimiento: string | null;
+}
+
+export interface SesionGuardada {
+  token: string;
+  usuario: Usuario;
+}
+
+/** Si la sesión vence o la cierran en el back, se avisa para limpiar la del navegador. */
+export const alExpirarSesion = { manejador: () => {} };
+
+async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+  const token = almacen.sesion<SesionGuardada>()?.token;
   const res = await fetch(`${BASE}/api${ruta}`, {
     method: metodo,
-    headers: { "Content-Type": "application/json", ...headers },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
   });
   if (res.status === 204) return undefined as T;
   const datos = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) alExpirarSesion.manejador();
   if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
   return datos as T;
 }
@@ -81,21 +102,27 @@ export const api = {
   crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/citas", cita),
   cita: (id: number, telefono: string) => pedir<Cita>("GET", `/citas/${id}?telefono=${encodeURIComponent(telefono)}`),
   cancelarCita: (id: number, telefono: string) => pedir<Cita>("POST", `/citas/${id}/cancelar`, { telefono }),
-  registro: (datos: { nombre: string; telefono: string; fechaNacimiento?: string; aceptaDatos: true }) =>
-    pedir<{ nombre: string; descuentoPct: number }>("POST", "/clientes/registro", datos),
 };
 
-/** API del panel: todas las llamadas llevan la clave en x-panel-clave. */
-export function apiPanel(clave: string) {
-  const h = { "x-panel-clave": clave };
+export const apiCuenta = {
+  login: (telefono: string, clave: string) => pedir<SesionGuardada>("POST", "/cuenta/login", { telefono, clave }),
+  registro: (datos: { nombre: string; telefono: string; clave: string; fechaNacimiento?: string; aceptaDatos: true }) =>
+    pedir<SesionGuardada & { descuentoPct: number }>("POST", "/cuenta/registro", datos),
+  yo: () => pedir<Usuario>("GET", "/cuenta/yo"),
+  guardar: (datos: { nombre: string; fechaNacimiento?: string | null }) => pedir<Usuario>("PATCH", "/cuenta/yo", datos),
+  logout: () => pedir<void>("POST", "/cuenta/logout"),
+  citaActiva: () => pedir<Cita | null>("GET", "/cuenta/yo/cita-activa"),
+};
+
+/** API del panel: va con la sesión del barbero o del admin. */
+export function apiPanel() {
   return {
-    verificar: () => pedir<{ ok: true }>("GET", "/panel/verificar", undefined, h),
-    citas: (desde: string, hasta: string) => pedir<Cita[]>("GET", `/panel/citas?desde=${desde}&hasta=${hasta}`, undefined, h),
-    bloqueos: (desde: string, hasta: string) => pedir<Bloqueo[]>("GET", `/panel/bloqueos?desde=${desde}&hasta=${hasta}`, undefined, h),
-    barberos: () => pedir<Barbero[]>("GET", "/panel/barberos", undefined, h),
-    cambiarEstado: (id: number, estado: EstadoCita) => pedir("PATCH", `/panel/citas/${id}/estado`, { estado }, h),
-    crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/panel/citas", cita, h),
-    bloquear: (b: { barberoId: number; inicio: string; fin: string; motivo: string }) => pedir("POST", "/panel/bloqueos", b, h),
-    borrarBloqueo: (id: number) => pedir("DELETE", `/panel/bloqueos/${id}`, undefined, h),
+    citas: (desde: string, hasta: string) => pedir<Cita[]>("GET", `/panel/citas?desde=${desde}&hasta=${hasta}`),
+    bloqueos: (desde: string, hasta: string) => pedir<Bloqueo[]>("GET", `/panel/bloqueos?desde=${desde}&hasta=${hasta}`),
+    barberos: () => pedir<Barbero[]>("GET", "/panel/barberos"),
+    cambiarEstado: (id: number, estado: EstadoCita) => pedir("PATCH", `/panel/citas/${id}/estado`, { estado }),
+    crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/panel/citas", cita),
+    bloquear: (b: { barberoId: number; inicio: string; fin: string; motivo: string }) => pedir("POST", "/panel/bloqueos", b),
+    borrarBloqueo: (id: number) => pedir("DELETE", `/panel/bloqueos/${id}`),
   };
 }

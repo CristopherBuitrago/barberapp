@@ -12,6 +12,5 @@ export const config = {
   zonaDesfase: process.env.ZONA_DESFASE ?? "-05:00",
   intervaloMin: Number(process.env.INTERVALO_MIN ?? 30),
   agenteApiKey: requerida("AGENTE_API_KEY"),
-  panelClave: requerida("PANEL_CLAVE"),
   descuentoRegistroPct: Number(process.env.DESCUENTO_REGISTRO_PCT ?? 10),
 };

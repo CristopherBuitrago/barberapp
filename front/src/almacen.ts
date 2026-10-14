@@ -2,7 +2,7 @@
 
 const CLAVE_CLIENTE = "barberia.cliente";
 const CLAVE_ULTIMA_CITA = "barberia.ultimaCita";
-const CLAVE_PANEL = "barberia.panelClave";
+const CLAVE_SESION = "barberia.sesion";
 
 function leer<T>(clave: string): T | null {
   try {
@@ -32,6 +32,6 @@ export const almacen = {
   guardarCliente: (c: ClienteRecordado) => escribir(CLAVE_CLIENTE, c),
   ultimaCita: <T>() => leer<T>(CLAVE_ULTIMA_CITA),
   guardarUltimaCita: (c: unknown) => escribir(CLAVE_ULTIMA_CITA, c),
-  panelClave: () => leer<string>(CLAVE_PANEL),
-  guardarPanelClave: (c: string | null) => escribir(CLAVE_PANEL, c),
+  sesion: <T>() => leer<T>(CLAVE_SESION),
+  guardarSesion: (s: unknown) => escribir(CLAVE_SESION, s),
 };

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "equipo:cuenta": "tsx scripts/cuenta-equipo.ts",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {

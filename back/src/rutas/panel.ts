@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.js";
-import { soloPanel } from "../lib/auth.js";
+import { soloEquipo } from "../lib/sesion.js";
 import { ErrorNegocio } from "../lib/errores.js";
 import { aInstante, aIsoLocal } from "../lib/fechas.js";
 import { citasEnRango, crearCita } from "../servicios/citas.js";
 import { fecha, id, instante, nuevaCita } from "./esquemas.js";
 
-/** Rutas del panel de la barbería (header x-panel-clave). */
+/** Rutas del panel de la barbería (sesión de un barbero o del admin). */
 export const rutasPanel = Router();
-rutasPanel.use(soloPanel);
+rutasPanel.use(soloEquipo);
 
 rutasPanel.get("/verificar", (_req, res) => {
   res.json({ ok: true });

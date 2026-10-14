@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { apiPanel, barberia, type Barbero, type Bloqueo, type Cita } from "../api";
-import { almacen } from "../almacen";
+import { BotonMenu, BotonPerfil } from "../componentes/Navegacion";
+import { useSesion } from "../sesion";
 import { DIAS_CORTOS, MESES, diaSemana, hoy, inicioSemana, sumarDias } from "../formato";
 import { Calendario } from "./Calendario";
 import { DetalleCita } from "./DetalleCita";
@@ -10,52 +12,16 @@ import { FormCita } from "./FormCita";
 type Vista = "semana" | "dia";
 type Modal = { tipo: "cita"; cita: Cita } | { tipo: "nueva" } | { tipo: "bloqueo" } | null;
 
+/** El panel es solo para barberos y admin: sin sesión del equipo se va a iniciar sesión. */
 export function Panel() {
-  const [clave, setClave] = useState(almacen.panelClave());
-  if (!clave) return <Ingreso onIngresar={setClave} />;
-  return (
-    <Agenda
-      clave={clave}
-      onSalir={() => {
-        almacen.guardarPanelClave(null);
-        setClave(null);
-      }}
-    />
-  );
+  const { usuario, esEquipo } = useSesion();
+  if (!usuario) return <Navigate to="/perfil" replace state={{ desde: "/panel" }} />;
+  if (!esEquipo) return <Navigate to="/" replace />;
+  return <Agenda />;
 }
 
-function Ingreso({ onIngresar }: { onIngresar: (clave: string) => void }) {
-  const [valor, setValor] = useState("");
-  const [error, setError] = useState("");
-
-  async function ingresar(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      await apiPanel(valor).verificar();
-      almacen.guardarPanelClave(valor);
-      onIngresar(valor);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
-  return (
-    <div className="panel-ingreso">
-      <form className="tarjeta" onSubmit={ingresar}>
-        <h2>💈 Panel · {barberia.nombre}</h2>
-        <label className="campo">
-          Clave del panel
-          <input type="password" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button className="boton primario bloque">Entrar</button>
-      </form>
-    </div>
-  );
-}
-
-function Agenda({ clave, onSalir }: { clave: string; onSalir: () => void }) {
-  const api = useMemo(() => apiPanel(clave), [clave]);
+function Agenda() {
+  const api = useMemo(() => apiPanel(), []);
   const angosta = typeof window !== "undefined" && window.innerWidth < 760;
   const [vista, setVista] = useState<Vista>(angosta ? "dia" : "semana");
   const [fecha, setFecha] = useState(hoy());
@@ -83,10 +49,9 @@ function Agenda({ clave, onSalir }: { clave: string; onSalir: () => void }) {
       setBloqueos(b);
       setError("");
     } catch (e) {
-      if ((e as Error).message.includes("Clave")) onSalir();
       setError((e as Error).message);
     }
-  }, [api, dias, onSalir]);
+  }, [api, dias]);
 
   useEffect(() => {
     api.barberos().then(setBarberos).catch(() => {});
@@ -113,9 +78,10 @@ function Agenda({ clave, onSalir }: { clave: string; onSalir: () => void }) {
   return (
     <div className="panel">
       <header className="panel-barra">
+        <BotonMenu />
         <strong>💈 {barberia.nombre}</strong>
         <span className="panel-resumen">{agendadasHoy} citas pendientes hoy</span>
-        <button className="enlace" onClick={onSalir}>Salir</button>
+        <BotonPerfil />
       </header>
 
       <div className="panel-controles">
