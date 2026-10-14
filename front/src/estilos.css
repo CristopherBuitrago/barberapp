@@ -11,7 +11,29 @@
   --rojo: #dc2626;
   --whatsapp: #25d366;
   --radio: 14px;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Diseño de Figma "Diego Barber" (web del cliente) */
+  --db-negro: #030303;
+  --db-panel: #d9d9d9;
+  --db-borde-tarjeta: #a9a9a9;
+  --db-borde-recuadro: #afafaf;
+  --db-borde-entrada: #cbcbcb;
+  --db-texto: #363636;
+  --db-texto-suave: #5c5c5c;
+  --db-texto-tenue: #bababa;
+  --db-azul: #0f38ed;
+  --db-azul-paso: #0040ff;
+  --db-paso-inactivo: #dedede;
+  --db-linea-paso: #838383;
+  --db-borde-dia: #9e9e9e;
+  --db-rojo: #e31f29;
+  --db-verde: #268e00;
+  --db-verde-total: #77d65c;
+  --db-gris-boton: #5c5c5c;
+  --db-gris-franja: #686868;
+  --db-gris-foto: #7e7e7e;
+
+  font-family: "Albert Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--texto);
   background: var(--fondo);
 }
@@ -23,42 +45,9 @@ h2 { font-size: 1.05rem; }
 h3 { font-size: 0.9rem; margin: 18px 0 8px; color: var(--suave); font-weight: 600; }
 a { color: var(--azul); }
 
-/* ---------- Cliente ---------- */
-.pagina { min-height: 100vh; max-width: 480px; margin: 0 auto; background: var(--fondo); }
-.cabecera {
-  background: var(--negro);
-  display: flex; justify-content: center; align-items: center;
-  padding: 36px 16px 56px;
-  border-radius: 0 0 28px 28px;
-}
-.cabecera.compacta { padding: 14px 16px 30px; border-radius: 0 0 20px 20px; }
-.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fff; }
-.logo-poste { font-size: 2.2rem; }
-.cabecera.compacta .logo-poste { font-size: 1.4rem; }
-.logo-texto { font-family: "Brush Script MT", "Segoe Script", cursive; font-size: 2.4rem; line-height: 0.9; display: flex; flex-direction: column; }
-.logo-texto em { font-style: normal; color: #60a5fa; margin-left: 18px; }
-.cabecera.compacta .logo-texto { font-size: 1.4rem; flex-direction: row; gap: 6px; }
-.cabecera.compacta .logo-texto em { margin-left: 0; }
-
-.contenido { padding: 0 16px 96px; margin-top: -28px; display: flex; flex-direction: column; gap: 14px; }
-.cabecera.compacta + .contenido { margin-top: -16px; }
-.lista { display: flex; flex-direction: column; gap: 14px; }
-
+/* ---------- Base compartida (también la usa el panel) ---------- */
 .tarjeta { background: var(--tarjeta); border-radius: var(--radio); padding: 16px; box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }
-.servicio { cursor: pointer; }
 .servicio-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.duracion { color: var(--suave); font-size: 0.85rem; white-space: nowrap; }
-.descripcion { color: var(--suave); font-size: 0.9rem; line-height: 1.45; margin: 10px 0 14px; }
-.servicio-pie { display: flex; justify-content: space-between; align-items: center; }
-.precio { font-weight: 700; }
-.total { background: var(--azul-suave); color: var(--azul); padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; }
-.servicio-imagen { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 14px; background: #bdbdc2; }
-.servicio-imagen.vacia { display: grid; place-items: center; font-size: 2.5rem; }
-
-.aviso-descuento {
-  display: block; background: #fff7e6; border: 1px dashed #f59e0b; color: #7c4a03;
-  border-radius: var(--radio); padding: 12px 14px; text-decoration: none; font-size: 0.9rem;
-}
 
 .boton {
   border: 0; border-radius: 999px; padding: 10px 20px; font-weight: 600; font-size: 0.9rem;
@@ -69,38 +58,12 @@ a { color: var(--azul); }
 .boton.exito { background: var(--verde); color: #fff; }
 .boton.peligro { background: var(--rojo); color: #fff; }
 .boton.secundario { background: #fff; color: var(--texto); border: 1px solid var(--borde); }
-.boton.whatsapp { background: var(--whatsapp); color: #fff; }
 .boton.bloque { display: block; width: 100%; }
-.boton.flotante { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); box-shadow: 0 6px 18px rgb(0 0 0 / 20%); }
-.enlace { background: none; border: 0; color: inherit; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
+.enlace { background: none; border: 0; color: inherit; cursor: pointer; font-size: 0.9rem; text-decoration: underline; font-family: inherit; padding: 0; }
 
 .acciones { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
-.acciones.columna { flex-direction: column; }
 .acciones.envolver { flex-wrap: wrap; justify-content: flex-start; }
 
-/* Pasos */
-.pasos { list-style: none; display: flex; justify-content: space-between; margin: 0; padding: 10px 14px; background: var(--tarjeta); border-radius: var(--radio); font-size: 0.8rem; color: var(--suave); }
-.pasos li { display: flex; align-items: center; gap: 6px; }
-.pasos-circulo { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--borde); font-size: 0.75rem; }
-.pasos li.actual { color: var(--azul); font-weight: 600; }
-.pasos li.actual .pasos-circulo { border-color: var(--azul); }
-.pasos li.hecho .pasos-circulo { background: var(--azul); border-color: var(--azul); color: #fff; }
-
-/* Selección de fecha y hora */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 1px solid var(--borde); background: #fff; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
-.chip.activo { background: var(--azul); border-color: var(--azul); color: #fff; }
-.mes { text-transform: capitalize; color: var(--texto); }
-.dias { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-.dia { flex: 0 0 52px; border: 1px solid var(--borde); background: #fff; border-radius: 12px; padding: 6px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: inherit; font-size: 0.75rem; color: var(--suave); }
-.dia strong { font-size: 1rem; color: var(--texto); }
-.dia.activo { background: var(--azul); border-color: var(--azul); color: #dbe5ff; }
-.dia.activo strong { color: #fff; }
-.franja { margin-bottom: 12px; }
-.franja-nombre { display: block; font-size: 0.75rem; color: var(--suave); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
-.sin-horas p { color: var(--suave); margin: 0 0 10px; }
-
-/* Formularios */
 .campo { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--suave); margin-top: 12px; flex: 1; }
 .campo input, .campo select, select {
   border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; font-family: inherit; color: var(--texto); background: #fff;
@@ -113,13 +76,146 @@ a { color: var(--azul); }
 .error { color: var(--rojo); font-size: 0.85rem; margin: 10px 0 0; }
 .cargando { color: var(--suave); text-align: center; }
 
-/* Éxito */
-.exito { text-align: center; }
-.check { width: 92px; height: 92px; margin: 22px auto; border-radius: 50%; background: var(--verde); color: #fff; display: grid; place-items: center; font-size: 3rem; }
-.check.cancelado { background: var(--suave); }
-.exito-texto { line-height: 1.5; color: var(--suave); }
-.exito-texto strong { color: var(--texto); }
-.exito-precio { font-weight: 700; }
+/* ---------- Web del cliente (Figma "Diego Barber") ---------- */
+.pagina {
+  min-height: 100vh; max-width: 480px; margin: 0 auto; background: var(--db-negro);
+  display: flex; flex-direction: column; color: #000;
+}
+.cabecera { display: flex; justify-content: center; height: 170px; padding-top: 7px; flex-shrink: 0; }
+.logo { display: block; }
+.logo img { display: block; }
+
+.contenido {
+  flex: 1; background: var(--db-panel); border-radius: 23px 23px 0 0;
+  padding: 20px 18px 96px; display: flex; flex-direction: column; gap: 21px;
+}
+.lista { display: flex; flex-direction: column; gap: 21px; }
+
+.pagina h2 { font-size: 12px; font-weight: 700; color: #000; }
+.pagina h2.suave { color: var(--db-texto-suave); }
+.pagina h3 { font-size: 10px; font-weight: 700; color: var(--db-texto-suave); margin: 14px 0 6px 3px; }
+.pagina .error { font-size: 10px; font-weight: 700; color: var(--db-rojo); }
+.pagina .cargando { font-size: 10px; font-weight: 700; color: var(--db-texto-suave); margin: 12px 0; }
+.pagina .enlace { font-size: 10px; font-weight: 700; color: var(--db-texto); }
+.pagina .enlace.peligro { color: var(--db-rojo); }
+
+.pagina .tarjeta {
+  background: #fff; border: 1px solid var(--db-borde-tarjeta); border-radius: 10px;
+  box-shadow: 0 0 5px rgb(0 0 0 / 25%); padding: 13px 14px 11px;
+}
+.servicio { cursor: pointer; }
+.servicio-pie { display: flex; justify-content: space-between; align-items: center; }
+.descripcion { font-size: 10px; font-weight: 700; color: var(--db-texto-suave); line-height: normal; margin: 11px 0 22px; }
+.descripcion.recortada { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.centrado { text-align: center; }
+.a-la-derecha { display: flex; justify-content: flex-end; }
+
+/* Duración y precio con sus íconos */
+.meta { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--db-texto); white-space: nowrap; }
+.meta.precio { gap: 3px; }
+
+/* Botones del diseño: 17px de alto, esquinas de 5px */
+.pagina .boton {
+  min-width: 67px; height: 17px; padding: 0 9px; border-radius: 5px; font-size: 11px; font-weight: 700;
+  line-height: 17px; color: #fff;
+}
+.pagina .boton.primario { background: var(--db-azul); }
+.pagina .boton.peligro { background: var(--db-rojo); }
+.pagina .boton.exito { background: var(--db-verde); }
+.pagina .boton:disabled { background: var(--db-gris-boton); opacity: 1; }
+.pagina .acciones { margin-top: 18px; align-items: center; }
+.pagina .acciones.centradas { justify-content: center; }
+
+.aviso-descuento {
+  display: block; background: #fff7e6; border: 1px dashed #f59e0b; color: #7c4a03;
+  border-radius: 10px; padding: 10px 12px; text-decoration: none; font-size: 10px; font-weight: 700;
+}
+.pagina .boton.whatsapp { background: var(--whatsapp); }
+.pagina .boton.flotante {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  height: 32px; line-height: 32px; padding: 0 16px; border-radius: 999px; white-space: nowrap; box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+}
+
+/* Tarjeta grande de los pasos de la reserva */
+.pagina .tarjeta.paso { padding: 8px 7px 16px; }
+.paso-cuerpo { padding: 0 8px; margin-top: 28px; }
+.servicio-imagen { display: block; width: 100%; height: 124px; object-fit: cover; background: var(--db-gris-foto); margin: 11px 0 21px; }
+.paso-cuerpo .descripcion { margin: 0 0 4px; }
+.paso-cuerpo .acciones { margin-top: 64px; }
+
+/* Indicador de pasos */
+.pasos { list-style: none; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 0; font-size: 10px; font-weight: 700; color: var(--db-texto); }
+.pasos li { display: flex; align-items: center; gap: 4px; }
+.pasos-linea { flex: 0 1 28px; height: 1px; background: var(--db-linea-paso); }
+.pasos-circulo {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--db-paso-inactivo); color: var(--db-texto-suave); font-size: 12px;
+}
+.pasos li.actual .pasos-circulo, .pasos li.hecho .pasos-circulo { background: var(--db-azul-paso); color: #fff; }
+
+/* Recuadros internos (servicio, resumen, contacto) */
+.recuadro { border: 1px solid var(--db-borde-recuadro); border-radius: 5px; background: #fff; margin-top: 19px; }
+.recuadro + .recuadro { margin-top: 12px; }
+.recuadro-cabeza { display: flex; justify-content: space-between; align-items: center; padding: 5px 5px 5px 9px; border-bottom: 1px solid var(--db-borde-recuadro); min-height: 28px; }
+.recuadro-cabeza.centrado { justify-content: center; }
+.recuadro-cuerpo { padding: 6px 7px 10px 6px; }
+.recuadro-cabeza + .recuadro-cuerpo { padding: 13px 9px 10px 12px; }
+.recuadro .descripcion { margin: 8px 0 6px; }
+.total { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; }
+.total-valor { background: var(--db-verde-total); border-radius: 20px; height: 17px; padding: 0 5px; display: inline-flex; align-items: center; }
+.fecha-cita { font-size: 10px; font-weight: 700; color: var(--db-texto-tenue); margin: 2px 0 0; }
+
+/* Calendario semanal */
+.mes { text-align: center; font-size: 12px; font-weight: 700; margin: 0 0 6px; }
+.mes::first-letter { text-transform: uppercase; }
+.semana { display: flex; justify-content: space-between; align-items: center; padding: 0 6px; }
+.flecha { border: 0; background: none; padding: 0; cursor: pointer; display: grid; }
+.flecha:disabled { opacity: 0.35; cursor: default; }
+.dia {
+  width: 21px; height: 21px; border-radius: 50%; border: 1px solid var(--db-borde-dia); background: #fff; padding: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  font-family: inherit; font-size: 7px; font-weight: 700; line-height: normal; color: #000; cursor: pointer;
+}
+.dia.activo { border-color: var(--db-azul-paso); }
+.dia:disabled { background: rgb(255 255 255 / 53%); color: var(--db-borde-dia); cursor: default; }
+
+/* Jornadas y horas */
+.franjas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 24px; padding: 0 9px; }
+.franja { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.franja .boton { width: 67px; padding: 0; }
+.franja .boton:disabled { background: var(--db-gris-franja); }
+.franja .boton.abierta { outline: 2px solid var(--db-azul-paso); outline-offset: 1px; }
+.franja-vacia { font-size: 8px; font-weight: 700; color: var(--db-texto-suave); text-align: center; max-width: 100px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips.horas { margin-top: 12px; padding: 0 9px; }
+.chip {
+  border: 1px solid var(--db-borde-dia); background: #fff; border-radius: 5px; height: 17px; padding: 0 8px; cursor: pointer;
+  font-family: inherit; font-size: 10px; font-weight: 700; color: var(--db-texto);
+}
+.chip.activo { background: var(--db-azul); border-color: var(--db-azul); color: #fff; }
+.sin-horas { text-align: center; margin-top: 16px; }
+.sin-horas p { font-size: 10px; font-weight: 700; color: var(--db-texto-suave); margin: 0 0 6px; }
+
+/* Formularios del cliente */
+.texto-contacto { font-size: 10px; font-weight: 500; color: var(--db-texto-suave); margin: 10px 0 14px; }
+.entrada {
+  display: block; width: 100%; height: 16px; border: 1px solid var(--db-borde-entrada); border-radius: 2px; background: #fff;
+  padding: 0 5px; font-family: inherit; font-size: 10px; font-weight: 700; color: #000; margin-top: 11px;
+}
+.entrada::placeholder { color: var(--db-texto-suave); }
+.etiqueta { display: block; font-size: 10px; font-weight: 700; color: var(--db-texto-suave); margin-top: 11px; }
+.etiqueta .entrada { margin-top: 4px; }
+.pagina .casilla { font-size: 9px; font-weight: 500; color: var(--db-texto-suave); gap: 6px; margin-top: 12px; }
+
+/* Confirmación */
+.recuadro.reservado { min-height: 291px; margin-top: 23px; }
+.check {
+  width: 88px; height: 88px; border-radius: 50%; background: var(--db-verde); margin: 43px auto 34px;
+  display: grid; place-items: center; color: #fff; font-size: 44px;
+}
+.check.cancelado { background: var(--db-gris-boton); }
+.reservado .descripcion { margin: 0 0 12px; }
+.enlaces { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; }
 
 /* ---------- Panel de la barbería ---------- */
 .panel-ingreso { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--negro); }

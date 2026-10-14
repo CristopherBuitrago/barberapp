@@ -82,6 +82,16 @@ npm run dev                   # servidor del webhook
 - `pasar_a_humano`: el agente deja de responder a ese cliente por 2 h y avisa a `BARBERIA_TELEFONO_AVISOS`.
 - Modelo: `claude-opus-5-5` con esfuerzo `low` (configurable con `CLAUDE_MODELO` y `CLAUDE_ESFUERZO`), con *fallback* del servidor activado (`fallbacks: "default"`) por si el modelo declina una respuesta.
 
+## Diseño de la web del cliente
+
+La web del cliente sigue el archivo de Figma [Diego Barber](https://www.figma.com/design/lJTRg7KKFLe5rf83Gwxc5Q/Untitled) (frames `142:3` catálogo, `164:41` servicio, `165:107` fecha y hora, `165:193` confirmar, `171:2` reservado, `171:66` catálogo con botones deshabilitados). Está diseñada a 320 px de ancho.
+
+- Colores y medidas del diseño: variables `--db-*` en `front/src/estilos.css`, aplicadas solo dentro de `.pagina` (el panel conserva su estilo).
+- Logo e íconos exportados de Figma: `front/src/assets/figma/`.
+- Fuente: Albert Sans (Google Fonts, en `front/index.html`).
+- Fecha: semana de lunes a sábado con flechas. Hora: se elige la jornada (Mañana / Tarde / Noche) y luego la hora; una jornada sin cupo sale en gris con "No hay horarios disponibles".
+- Lo que la web ya tenía y no está en el diseño se mantuvo con el mismo estilo: aviso de descuento, botón de WhatsApp, elegir barbero, autorización de datos (Ley 1581), agregar al calendario y cancelar la cita.
+
 ## API del back
 
 | Ruta | Quién | Para qué |

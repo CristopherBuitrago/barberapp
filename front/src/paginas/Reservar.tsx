@@ -1,16 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Barbero, type HoraDisponible, type Servicio } from "../api";
 import { almacen } from "../almacen";
-import { Marco, Pasos } from "../componentes/Marco";
-import { DIAS_CORTOS, MESES, diaSemana, fechaLarga, hora, hoy, precio, sumarDias } from "../formato";
+import { Duracion, Marco, Pasos, Precio } from "../componentes/Marco";
+import { DIAS_CORTOS, MESES, diaSemana, fechaLarga, hora, hora24, horaCompacta, hoy, inicioSemana, sumarDias } from "../formato";
+import flechaIzq from "../assets/figma/flecha-izq.svg";
+import flechaDer from "../assets/figma/flecha-der.svg";
 
-const DIAS_VISIBLES = 14;
+/** La barbería atiende de lunes a sábado: la semana del calendario muestra esos 6 días. */
+const DIAS_SEMANA = 6;
+const DIAS_BUSQUEDA = 14;
 const FRANJAS = [
   { nombre: "Mañana", desde: 0, hasta: 12 },
   { nombre: "Tarde", desde: 12, hasta: 17 },
   { nombre: "Noche", desde: 17, hasta: 24 },
 ];
+
+/** Primer día que se puede reservar: hoy, o el lunes si hoy es domingo. */
+function primerDiaReservable(): string {
+  return diaSemana(hoy()) === 0 ? sumarDias(hoy(), 1) : hoy();
+}
 
 export function Reservar() {
   const { servicioId } = useParams();
@@ -21,8 +30,10 @@ export function Reservar() {
   const [servicio, setServicio] = useState<Servicio | null>(null);
   const [barberos, setBarberos] = useState<Barbero[]>([]);
   const [barberoId, setBarberoId] = useState<number | undefined>();
-  const [fecha, setFecha] = useState(hoy());
+  const [fecha, setFecha] = useState(primerDiaReservable());
+  const [semana, setSemana] = useState(inicioSemana(primerDiaReservable()));
   const [horas, setHoras] = useState<HoraDisponible[] | null>(null);
+  const [franja, setFranja] = useState<string | null>(null);
   const [elegida, setElegida] = useState<HoraDisponible | null>(null);
   const [proxima, setProxima] = useState<string | null>(null);
 
@@ -43,13 +54,14 @@ export function Reservar() {
     if (!servicio) return;
     let vigente = true;
     setHoras(null);
+    setFranja(null);
     setElegida(null);
     setProxima(null);
     api.disponibilidad(servicio.id, fecha, barberoId).then(async (lista) => {
       if (!vigente) return;
       setHoras(lista);
       if (lista.length > 0) return;
-      for (let i = 1; i <= DIAS_VISIBLES; i++) {
+      for (let i = 1; i <= DIAS_BUSQUEDA; i++) {
         const otra = sumarDias(fecha, i);
         const libres = await api.disponibilidad(servicio.id, otra, barberoId);
         if (!vigente) return;
@@ -64,9 +76,18 @@ export function Reservar() {
     };
   }, [servicio, fecha, barberoId]);
 
-  const dias = useMemo(() => Array.from({ length: DIAS_VISIBLES }, (_, i) => sumarDias(hoy(), i)), []);
+  if (!servicio) return <Marco><p className="cargando">Cargando…</p></Marco>;
 
-  if (!servicio) return <Marco compacto><p className="cargando">Cargando…</p></Marco>;
+  function irAFecha(nueva: string) {
+    setFecha(nueva);
+    setSemana(inicioSemana(nueva));
+  }
+
+  function moverSemana(dias: number) {
+    const lunes = sumarDias(semana, dias);
+    setSemana(lunes);
+    setFecha(lunes < primerDiaReservable() ? primerDiaReservable() : lunes);
+  }
 
   async function confirmar() {
     if (!elegida || !servicio) return;
@@ -87,6 +108,7 @@ export function Reservar() {
       if ((e as Error).message.includes("disponible")) {
         // Alguien tomó esa hora mientras tanto: volver a elegir con la disponibilidad al día.
         setPaso(1);
+        setFranja(null);
         setElegida(null);
         setHoras(null);
         api.disponibilidad(servicio.id, fecha, barberoId).then(setHoras);
@@ -96,139 +118,218 @@ export function Reservar() {
     }
   }
 
+  const dias = Array.from({ length: DIAS_SEMANA }, (_, i) => sumarDias(semana, i));
+  const horasDe = (f: (typeof FRANJAS)[number]) =>
+    (horas ?? []).filter((h) => {
+      const hh = Number(h.inicio.slice(11, 13));
+      return hh >= f.desde && hh < f.hasta;
+    });
+  const abierta = FRANJAS.find((f) => f.nombre === franja);
+
   const nombreBarbero = barberoId
     ? barberos.find((b) => b.id === barberoId)?.nombre
     : elegida?.barberos[0]?.nombre;
 
   return (
-    <Marco compacto>
-      <Pasos actual={paso} />
+    <Marco>
+      <section className="tarjeta paso">
+        <Pasos actual={paso} />
 
-      {paso === 0 && (
-        <section className="tarjeta">
-          {servicio.imagenUrl ? (
-            <img className="servicio-imagen" src={servicio.imagenUrl} alt={servicio.nombre} />
-          ) : (
-            <div className="servicio-imagen vacia">✂️</div>
-          )}
-          <div className="servicio-cabeza">
-            <h2>{servicio.nombre}</h2>
-            <span className="duracion">⏱ {servicio.duracionMin} min</span>
-          </div>
-          <p className="descripcion">{servicio.descripcion}</p>
-          <div className="servicio-pie">
-            <span className="precio">{precio(servicio.precio)}</span>
-            <button className="boton primario" onClick={() => setPaso(1)}>Siguiente</button>
-          </div>
-        </section>
-      )}
-
-      {paso === 1 && (
-        <section className="tarjeta">
-          <div className="servicio-cabeza">
-            <h2>{servicio.nombre}</h2>
-            <span className="precio">{precio(servicio.precio)}</span>
-          </div>
-
-          <h3>¿Con quién?</h3>
-          <div className="chips">
-            <button className={!barberoId ? "chip activo" : "chip"} onClick={() => setBarberoId(undefined)}>
-              Cualquiera
-            </button>
-            {barberos.map((b) => (
-              <button key={b.id} className={barberoId === b.id ? "chip activo" : "chip"} onClick={() => setBarberoId(b.id)}>
-                {b.nombre}
-              </button>
-            ))}
-          </div>
-
-          <h3>Selecciona fecha · <span className="mes">{MESES[Number(fecha.slice(5, 7)) - 1]}</span></h3>
-          <div className="dias">
-            {dias.map((d) => (
-              <button key={d} className={d === fecha ? "dia activo" : "dia"} onClick={() => setFecha(d)}>
-                <span>{DIAS_CORTOS[diaSemana(d)]}</span>
-                <strong>{Number(d.slice(8, 10))}</strong>
-              </button>
-            ))}
-          </div>
-
-          <h3>Hora</h3>
-          {!horas && <p className="cargando">Buscando horas libres…</p>}
-          {horas?.length === 0 && (
-            <div className="sin-horas">
-              <p>No quedan horas este día.</p>
-              {proxima && (
-                <button className="boton secundario" onClick={() => setFecha(proxima.slice(0, 10))}>
-                  Próxima disponible: {fechaLarga(proxima)}, {hora(proxima)}
-                </button>
-              )}
+        {paso === 0 && (
+          <div className="paso-cuerpo">
+            <div className="servicio-cabeza">
+              <h2>{servicio.nombre}</h2>
+              <Duracion minutos={servicio.duracionMin} />
             </div>
-          )}
-          {horas &&
-            horas.length > 0 &&
-            FRANJAS.map((f) => {
-              const enFranja = horas.filter((h) => {
-                const hh = Number(h.inicio.slice(11, 13));
-                return hh >= f.desde && hh < f.hasta;
-              });
-              if (enFranja.length === 0) return null;
-              return (
-                <div key={f.nombre} className="franja">
-                  <span className="franja-nombre">{f.nombre}</span>
-                  <div className="chips">
-                    {enFranja.map((h) => (
+            {servicio.imagenUrl ? (
+              <img className="servicio-imagen" src={servicio.imagenUrl} alt={servicio.nombre} />
+            ) : (
+              <div className="servicio-imagen" />
+            )}
+            <p className="descripcion">{servicio.descripcion}</p>
+            <div className="a-la-derecha"><Precio valor={servicio.precio} /></div>
+            <div className="acciones">
+              <span />
+              <button className="boton primario" onClick={() => setPaso(1)}>Siguiente</button>
+            </div>
+          </div>
+        )}
+
+        {paso === 1 && (
+          <>
+            <div className="recuadro">
+              <div className="recuadro-cuerpo">
+                <div className="servicio-cabeza">
+                  <h2>{servicio.nombre}</h2>
+                  <Duracion minutos={servicio.duracionMin} />
+                </div>
+                <p className="descripcion">{servicio.descripcion}</p>
+                <div className="a-la-derecha"><Precio valor={servicio.precio} /></div>
+              </div>
+            </div>
+
+            {barberos.length > 1 && (
+              <>
+                <h3>Barbero</h3>
+                <div className="chips">
+                  <button className={!barberoId ? "chip activo" : "chip"} onClick={() => setBarberoId(undefined)}>
+                    Cualquiera
+                  </button>
+                  {barberos.map((b) => (
+                    <button key={b.id} className={barberoId === b.id ? "chip activo" : "chip"} onClick={() => setBarberoId(b.id)}>
+                      {b.nombre}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <h3>Seleccionar fecha</h3>
+            <p className="mes">
+              {MESES[Number(fecha.slice(5, 7)) - 1]} {fecha.slice(0, 4)}
+            </p>
+            <div className="semana">
+              <button
+                className="flecha"
+                aria-label="Semana anterior"
+                disabled={semana <= inicioSemana(primerDiaReservable())}
+                onClick={() => moverSemana(-7)}
+              >
+                <img src={flechaIzq} alt="" width={20} height={20} />
+              </button>
+              {dias.map((d) => (
+                <button
+                  key={d}
+                  className={d === fecha ? "dia activo" : "dia"}
+                  disabled={d < primerDiaReservable()}
+                  aria-label={fechaLarga(d)}
+                  aria-pressed={d === fecha}
+                  onClick={() => setFecha(d)}
+                >
+                  <span>{DIAS_CORTOS[diaSemana(d)]}</span>
+                  <span>{Number(d.slice(8, 10))}</span>
+                </button>
+              ))}
+              <button className="flecha" aria-label="Semana siguiente" onClick={() => moverSemana(7)}>
+                <img src={flechaDer} alt="" width={20} height={20} />
+              </button>
+            </div>
+
+            {!horas && <p className="cargando">Buscando horas libres…</p>}
+            {horas?.length === 0 && (
+              <div className="sin-horas">
+                <p>No quedan horas este día.</p>
+                {proxima && (
+                  <button className="enlace" onClick={() => irAFecha(proxima.slice(0, 10))}>
+                    Próxima disponible: {fechaLarga(proxima)}, {hora(proxima)}
+                  </button>
+                )}
+              </div>
+            )}
+            {horas && horas.length > 0 && (
+              <>
+                <div className="franjas">
+                  {FRANJAS.map((f) => {
+                    const libres = horasDe(f);
+                    const conHora = elegida && libres.some((h) => h.inicio === elegida.inicio);
+                    return (
+                      <div key={f.nombre} className="franja">
+                        <button
+                          className={franja === f.nombre ? "boton primario abierta" : "boton primario"}
+                          disabled={libres.length === 0}
+                          aria-expanded={franja === f.nombre}
+                          onClick={() => setFranja(franja === f.nombre ? null : f.nombre)}
+                        >
+                          {conHora ? hora24(elegida.inicio) : f.nombre}
+                        </button>
+                        {libres.length === 0 && <span className="franja-vacia">No hay horarios disponibles para esta jornada</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {abierta && (
+                  <div className="chips horas">
+                    {horasDe(abierta).map((h) => (
                       <button
                         key={h.inicio}
                         className={elegida?.inicio === h.inicio ? "chip activo" : "chip"}
-                        onClick={() => setElegida(h)}
+                        onClick={() => {
+                          setElegida(h);
+                          setFranja(null);
+                        }}
                       >
-                        {hora(h.inicio)}
+                        {hora24(h.inicio)}
                       </button>
                     ))}
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </>
+            )}
 
-          {error && <p className="error">{error}</p>}
-          <div className="acciones">
-            <button className="boton peligro" onClick={() => (paso === 1 && params.get("paso") === "0" ? setPaso(0) : navegar("/"))}>
-              Atrás
-            </button>
-            <button className="boton primario" disabled={!elegida} onClick={() => setPaso(2)}>
-              Siguiente
-            </button>
-          </div>
-        </section>
-      )}
-
-      {paso === 2 && elegida && (
-        <>
-          <section className="tarjeta">
-            <div className="servicio-cabeza">
-              <h2>Resumen</h2>
-              <span className="total">Total {precio(servicio.precio)}</span>
+            {error && <p className="error">{error}</p>}
+            <div className="acciones">
+              <button className="boton peligro" onClick={() => (params.get("paso") === "0" ? setPaso(0) : navegar("/"))}>
+                Atrás
+              </button>
+              <button className="boton primario" disabled={!elegida} onClick={() => setPaso(2)}>
+                Siguiente
+              </button>
             </div>
-            <p className="resumen-linea"><strong>{servicio.nombre}</strong> · {servicio.duracionMin} min</p>
-            <p className="resumen-linea">📅 {fechaLarga(elegida.inicio)}, {hora(elegida.inicio)}</p>
-            <p className="resumen-linea">💈 {nombreBarbero ?? "El barbero que esté libre"}</p>
-            <p className="nota">Si te registraste, el descuento se aplica automáticamente.</p>
-          </section>
+          </>
+        )}
 
-          <section className="tarjeta">
-            <h2>Contacto</h2>
-            <label className="campo">
-              Nombre
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="name" />
-            </label>
-            <label className="campo">
-              Celular (WhatsApp)
-              <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="300 123 4567" />
-            </label>
-            <label className="casilla">
-              <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
-              Autorizo el tratamiento de mis datos personales para gestionar mis citas (Ley 1581 de 2012).
-            </label>
+        {paso === 2 && elegida && (
+          <>
+            <div className="recuadro">
+              <div className="recuadro-cabeza">
+                <h2>Resumen</h2>
+                <span className="total">
+                  Total <span className="total-valor"><Precio valor={servicio.precio} /></span>
+                </span>
+              </div>
+              <div className="recuadro-cuerpo">
+                <div className="servicio-cabeza">
+                  <h2>{servicio.nombre}</h2>
+                  <Duracion minutos={servicio.duracionMin} />
+                </div>
+                <p className="fecha-cita">
+                  {elegida.inicio.slice(0, 10)} | {horaCompacta(elegida.inicio)} · {nombreBarbero ?? "El barbero que esté libre"}
+                </p>
+                <p className="descripcion recortada">{servicio.descripcion}</p>
+                <div className="a-la-derecha"><Precio valor={servicio.precio} /></div>
+              </div>
+            </div>
+
+            <div className="recuadro">
+              <div className="recuadro-cuerpo">
+                <h2 className="suave">Contacto</h2>
+                <p className="texto-contacto">
+                  Te confirmamos la cita por WhatsApp. Si te registraste, el descuento se aplica automáticamente.
+                </p>
+                <input
+                  className="entrada"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Nombre"
+                  aria-label="Nombre"
+                  autoComplete="name"
+                />
+                <input
+                  className="entrada"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  placeholder="Teléfono"
+                  aria-label="Teléfono (WhatsApp)"
+                  inputMode="tel"
+                  autoComplete="tel"
+                />
+                <label className="casilla">
+                  <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
+                  Autorizo el tratamiento de mis datos personales para gestionar mis citas (Ley 1581 de 2012).
+                </label>
+              </div>
+            </div>
+
             {error && <p className="error">{error}</p>}
             <div className="acciones">
               <button className="boton peligro" onClick={() => setPaso(1)}>Atrás</button>
@@ -240,9 +341,9 @@ export function Reservar() {
                 {enviando ? "Reservando…" : "Confirmar"}
               </button>
             </div>
-          </section>
-        </>
-      )}
+          </>
+        )}
+      </section>
     </Marco>
   );
 }

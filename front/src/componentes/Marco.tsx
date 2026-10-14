@@ -1,19 +1,19 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { barberia } from "../api";
+import { duracion, miles } from "../formato";
+import logo from "../assets/figma/logo.png";
+import check from "../assets/figma/check.svg";
+import reloj from "../assets/figma/reloj.svg";
+import pesos from "../assets/figma/pesos.svg";
 
-/** Encabezado oscuro con el logo (grande en el catálogo, compacto en los pasos). */
-export function Marco({ children, compacto = false }: { children: ReactNode; compacto?: boolean }) {
-  const [nombre, ...resto] = barberia.nombre.split(" ");
+/** Encabezado negro con el logo y el panel gris redondeado donde va el contenido. */
+export function Marco({ children }: { children: ReactNode }) {
   return (
     <div className="pagina">
-      <header className={compacto ? "cabecera compacta" : "cabecera"}>
-        <Link to="/" className="logo" aria-label="Inicio">
-          <span className="logo-poste">💈</span>
-          <span className="logo-texto">
-            {nombre}
-            {resto.length > 0 && <em>{resto.join(" ")}</em>}
-          </span>
+      <header className="cabecera">
+        <Link to="/" className="logo">
+          <img src={logo} alt={barberia.nombre} width={159} height={159} />
         </Link>
       </header>
       <main className="contenido">{children}</main>
@@ -27,11 +27,34 @@ export function Pasos({ actual }: { actual: number }) {
   return (
     <ol className="pasos">
       {PASOS.map((p, i) => (
-        <li key={p} className={i < actual ? "hecho" : i === actual ? "actual" : ""}>
-          <span className="pasos-circulo">{i < actual ? "✓" : i + 1}</span>
-          {p}
-        </li>
+        <Fragment key={p}>
+          {i > 0 && <li className="pasos-linea" aria-hidden="true" />}
+          <li className={i < actual ? "hecho" : i === actual ? "actual" : ""} aria-current={i === actual ? "step" : undefined}>
+            <span className="pasos-circulo">
+              {i < actual ? <img src={check} alt="Hecho" width={15} height={15} /> : i + 1}
+            </span>
+            {p}
+          </li>
+        </Fragment>
       ))}
     </ol>
+  );
+}
+
+export function Duracion({ minutos }: { minutos: number }) {
+  return (
+    <span className="meta">
+      <img src={reloj} alt="" width={12} height={12} />
+      {duracion(minutos)}
+    </span>
+  );
+}
+
+export function Precio({ valor }: { valor: number }) {
+  return (
+    <span className="meta precio">
+      <img src={pesos} alt="$" width={6} height={11} />
+      {miles(valor)}
+    </span>
   );
 }

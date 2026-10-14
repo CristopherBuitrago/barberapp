@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, barberia, type Servicio } from "../api";
-import { Marco } from "../componentes/Marco";
-import { precio } from "../formato";
+import { Duracion, Marco, Precio } from "../componentes/Marco";
 
 export function Catalogo() {
   const [servicios, setServicios] = useState<Servicio[] | null>(null);
@@ -27,11 +26,11 @@ export function Catalogo() {
           <article key={s.id} className="tarjeta servicio" onClick={() => navegar(`/reservar/${s.id}?paso=0`)}>
             <div className="servicio-cabeza">
               <h2>{s.nombre}</h2>
-              <span className="duracion">⏱ {s.duracionMin} min</span>
+              <Duracion minutos={s.duracionMin} />
             </div>
             <p className="descripcion">{s.descripcion}</p>
             <div className="servicio-pie">
-              <span className="precio">{precio(s.precio)}</span>
+              <Precio valor={s.precio} />
               <button
                 className="boton primario"
                 onClick={(e) => {

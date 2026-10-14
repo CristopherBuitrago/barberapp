@@ -9,7 +9,20 @@ export const MESES = [
 ];
 
 export function precio(valor: number): string {
-  return `$${valor.toLocaleString("es-CO")}`;
+  return `$${miles(valor)}`;
+}
+
+/** "15.000" (el signo $ lo pone el ícono del diseño). */
+export function miles(valor: number): string {
+  return valor.toLocaleString("es-CO");
+}
+
+/** "30min", "1h", "1h 30min". */
+export function duracion(minutos: number): string {
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  if (!h) return `${m}min`;
+  return m ? `${h}h ${m}min` : `${h}h`;
 }
 
 /** Fecha local de hoy en Colombia, "YYYY-MM-DD". */
@@ -38,6 +51,17 @@ export function hora(iso: string): string {
   const [h, m] = iso.slice(11, 16).split(":").map(Number);
   const sufijo = h < 12 ? "a. m." : "p. m.";
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${sufijo}`;
+}
+
+/** "14:45" de un ISO con desfase. */
+export function hora24(iso: string): string {
+  return iso.slice(11, 16);
+}
+
+/** "9:00am" de un ISO con desfase. */
+export function horaCompacta(iso: string): string {
+  const [h, m] = iso.slice(11, 16).split(":").map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
 }
 
 /** "miércoles 14 de octubre". */

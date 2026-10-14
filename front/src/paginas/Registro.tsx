@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, barberia } from "../api";
 import { almacen } from "../almacen";
 import { Marco } from "../componentes/Marco";
+import checkGrande from "../assets/figma/check-grande.svg";
 
 export function Registro() {
   const recordado = almacen.cliente();
@@ -32,45 +33,72 @@ export function Registro() {
 
   if (resultado) {
     return (
-      <Marco compacto>
-        <section className="tarjeta exito">
-          <h2>¡Bienvenido, {resultado.nombre.split(" ")[0]}!</h2>
-          <div className="check">✓</div>
-          <p className="exito-texto">
-            {resultado.descuentoPct > 0
-              ? `Tu ${resultado.descuentoPct}% de descuento se aplica solo en tu próxima reserva, por la web o por WhatsApp.`
-              : "Ya estabas registrado. ¡Gracias por volver!"}
-          </p>
-          <Link to="/" className="boton primario bloque">Reservar ahora</Link>
+      <Marco>
+        <section className="tarjeta paso">
+          <div className="recuadro reservado">
+            <div className="recuadro-cabeza centrado">
+              <h2>¡Bienvenido, {resultado.nombre.split(" ")[0]}!</h2>
+            </div>
+            <div className="recuadro-cuerpo">
+              <div className="check">
+                <img src={checkGrande} alt="" width={64} height={64} />
+              </div>
+              <p className="descripcion centrado">
+                {resultado.descuentoPct > 0
+                  ? `Tu ${resultado.descuentoPct}% de descuento se aplica solo en tu próxima reserva, por la web o por WhatsApp.`
+                  : "Ya estabas registrado. ¡Gracias por volver!"}
+              </p>
+            </div>
+          </div>
+          <div className="acciones centradas">
+            <Link to="/" className="boton primario">Reservar ahora</Link>
+          </div>
         </section>
       </Marco>
     );
   }
 
   return (
-    <Marco compacto>
-      <form className="tarjeta" onSubmit={registrar}>
-        <h2>Regístrate</h2>
-        <p className="descripcion">
-          Te damos <strong>{barberia.descuentoRegistroPct}% de descuento</strong> en tu próximo corte, y te avisamos de promos y
-          productos para el cabello.
-        </p>
-        <label className="campo">
-          Nombre
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoComplete="name" />
-        </label>
-        <label className="campo">
-          Celular (WhatsApp)
-          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} required inputMode="tel" autoComplete="tel" placeholder="300 123 4567" />
-        </label>
-        <label className="campo">
-          Cumpleaños (opcional, para un detalle ese día 🎂)
-          <input type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
-        </label>
-        <label className="casilla">
-          <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
-          Autorizo el tratamiento de mis datos personales para gestionar mis citas y recibir promociones (Ley 1581 de 2012).
-        </label>
+    <Marco>
+      <form className="tarjeta paso" onSubmit={registrar}>
+        <div className="recuadro">
+          <div className="recuadro-cabeza">
+            <h2>Regístrate</h2>
+          </div>
+          <div className="recuadro-cuerpo">
+            <p className="texto-contacto">
+              Te damos <strong>{barberia.descuentoRegistroPct}% de descuento</strong> en tu próximo corte, y te avisamos de promos y
+              productos para el cabello.
+            </p>
+            <input
+              className="entrada"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+              placeholder="Nombre"
+              aria-label="Nombre"
+              autoComplete="name"
+            />
+            <input
+              className="entrada"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              required
+              placeholder="Teléfono"
+              aria-label="Teléfono (WhatsApp)"
+              inputMode="tel"
+              autoComplete="tel"
+            />
+            <label className="etiqueta">
+              Cumpleaños (opcional, para un detalle ese día 🎂)
+              <input className="entrada" type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
+            </label>
+            <label className="casilla">
+              <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
+              Autorizo el tratamiento de mis datos personales para gestionar mis citas y recibir promociones (Ley 1581 de 2012).
+            </label>
+          </div>
+        </div>
         {error && <p className="error">{error}</p>}
         <div className="acciones">
           <Link to="/" className="boton peligro">Atrás</Link>

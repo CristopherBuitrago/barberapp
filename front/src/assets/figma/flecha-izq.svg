@@ -1,0 +1,8 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="goleft">
+<circle id="GoLeft" cx="10" cy="10" r="10" fill="#0040FF"/>
+<g id="arrow-left">
+<path id="Vector" d="M13.8333 9.95833V11.0417H7.33333L10.3125 14.0208L9.54333 14.79L5.25333 10.5L9.54333 6.21L10.3125 6.97917L7.33333 9.95833H13.8333Z" fill="white"/>
+</g>
+</g>
+</svg>
