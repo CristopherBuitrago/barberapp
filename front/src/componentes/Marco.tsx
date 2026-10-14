@@ -16,7 +16,9 @@ export function Marco({ children }: { children: ReactNode }) {
           <img src={logo} alt={barberia.nombre} width={159} height={159} />
         </Link>
       </header>
-      <main className="contenido">{children}</main>
+      <main className="contenido">
+        <div className="contenido-interior">{children}</div>
+      </main>
     </div>
   );
 }

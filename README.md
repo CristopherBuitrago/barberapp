@@ -89,6 +89,7 @@ La web del cliente sigue el archivo de Figma [Diego Barber](https://www.figma.co
 - Colores y medidas del diseño: variables `--db-*` en `front/src/estilos.css`, aplicadas solo dentro de `.pagina` (el panel conserva su estilo).
 - Logo e íconos exportados de Figma: `front/src/assets/figma/`.
 - Fuente: Albert Sans (Google Fonts, en `front/index.html`).
+- Responsive: el contenido se escala con `--db-escala` (`zoom`: 1 hasta 359 px, 1.1, 1.2 desde 400 px y 1.4 desde 768 px) para que el diseño de 320 px llene el celular y se lea bien en escritorio. En pantallas anchas el catálogo pasa a cuadrícula y los pasos de la reserva quedan en una tarjeta centrada de 480 px.
 - Fecha: semana de lunes a sábado con flechas. Hora: se elige la jornada (Mañana / Tarde / Noche) y luego la hora; una jornada sin cupo sale en gris con "No hay horarios disponibles".
 - Lo que la web ya tenía y no está en el diseño se mantuvo con el mismo estilo: aviso de descuento, botón de WhatsApp, elegir barbero, autorización de datos (Ley 1581), agregar al calendario y cancelar la cita.
 
