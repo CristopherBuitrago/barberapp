@@ -6,7 +6,7 @@ import { esAgente } from "../lib/auth.js";
 import { ErrorNegocio } from "../lib/errores.js";
 import { normalizarTelefono } from "../lib/telefono.js";
 import { consultarDisponibilidad } from "../servicios/disponibilidad.js";
-import { cancelarCita, crearCita, reprogramarCita } from "../servicios/citas.js";
+import { cancelarCita, consultarCita, crearCita, reprogramarCita } from "../servicios/citas.js";
 import { fecha, id, instante, nuevaCita, telefono } from "./esquemas.js";
 
 /** Rutas que usa la web del cliente (y también el agente). */
@@ -40,6 +40,12 @@ rutasPublicas.post("/citas", async (req, res) => {
     throw new ErrorNegocio(400, "Debes aceptar el tratamiento de datos personales");
   }
   res.status(201).json(await crearCita({ ...datos, canal }));
+});
+
+rutasPublicas.get("/citas/:id", async (req, res) => {
+  const citaId = id.parse(req.params.id);
+  const q = z.object({ telefono }).parse(req.query);
+  res.json(await consultarCita(citaId, q.telefono));
 });
 
 rutasPublicas.post("/citas/:id/cancelar", async (req, res) => {

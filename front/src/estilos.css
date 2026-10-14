@@ -32,6 +32,7 @@
   --db-gris-boton: #5c5c5c;
   --db-gris-franja: #686868;
   --db-gris-foto: #7e7e7e;
+  --db-naranja: #f57c00;
 
   font-family: "Albert Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--texto);
@@ -118,6 +119,8 @@ a { color: var(--azul); }
   box-shadow: 0 0 5px rgb(0 0 0 / 25%); padding: 13px 14px 11px;
 }
 .servicio { cursor: pointer; }
+.servicio.bloqueado { cursor: default; }
+.servicio .fecha-cita { margin: 4px 0 -4px; }
 .servicio-pie { display: flex; justify-content: space-between; align-items: center; }
 .descripcion { font-size: 10px; font-weight: 700; color: var(--db-texto-suave); line-height: normal; margin: 11px 0 22px; }
 .descripcion.recortada { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -136,6 +139,7 @@ a { color: var(--azul); }
 .pagina .boton.primario { background: var(--db-azul); }
 .pagina .boton.peligro { background: var(--db-rojo); }
 .pagina .boton.exito { background: var(--db-verde); }
+.pagina .boton.agendada { background: var(--db-naranja); }
 .pagina .boton:disabled { background: var(--db-gris-boton); opacity: 1; }
 .pagina .acciones { margin-top: 18px; align-items: center; }
 .pagina .acciones.centradas { justify-content: center; }
@@ -143,6 +147,10 @@ a { color: var(--azul); }
 .aviso-descuento {
   display: block; background: #fff7e6; border: 1px dashed #f59e0b; color: #7c4a03;
   border-radius: 10px; padding: 10px 12px; text-decoration: none; font-size: 10px; font-weight: 700;
+}
+.aviso-agendada {
+  margin: 0; background: #fff3e0; border: 1px solid var(--db-naranja); color: #8a4500;
+  border-radius: 10px; padding: 10px 12px; font-size: 10px; font-weight: 700;
 }
 .pagina .boton.whatsapp { background: var(--whatsapp); }
 .pagina .boton.flotante {

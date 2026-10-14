@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, barberia, type Cita } from "../api";
-import { almacen } from "../almacen";
+import { api, barberia } from "../api";
+import { esActiva, useCitaGuardada } from "../citaGuardada";
 import { Marco } from "../componentes/Marco";
 import { descargarIcs, fechaLarga, hora, precio } from "../formato";
 import checkGrande from "../assets/figma/check-grande.svg";
 
-type CitaGuardada = Cita & { telefono: string };
-
 export function Exito() {
-  const [cita, setCita] = useState(almacen.ultimaCita<CitaGuardada>());
+  const { cita, guardar } = useCitaGuardada();
   const [cancelando, setCancelando] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,9 +27,7 @@ export function Exito() {
     if (!cita || !confirm("¿Seguro que quieres cancelar la cita?")) return;
     setCancelando(true);
     try {
-      const actualizada = { ...(await api.cancelarCita(cita.id, cita.telefono)), telefono: cita.telefono };
-      almacen.guardarUltimaCita(actualizada);
-      setCita(actualizada);
+      guardar({ ...(await api.cancelarCita(cita.id, cita.telefono)), telefono: cita.telefono });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -68,7 +64,7 @@ export function Exito() {
               )}
             </p>
 
-            {!cancelada && (
+            {esActiva(cita) && (
               <div className="enlaces">
                 <button
                   className="enlace"

@@ -98,6 +98,16 @@ export async function crearCita(datos: DatosNuevaCita) {
       },
     });
 
+    // Un cliente solo puede tener una cita activa a la vez (el panel sí puede agendar más).
+    if (datos.canal !== "PANEL") {
+      const activa = await tx.cita.findFirst({
+        where: { clienteId: cliente.id, estado: "AGENDADA", fin: { gt: new Date() } },
+      });
+      if (activa) {
+        throw new ErrorNegocio(409, "Ya tienes una cita agendada. Cancélala o espera a que pase para reservar otra.");
+      }
+    }
+
     // Descuento de bienvenida: primera cita después de registrarse en la plataforma.
     let descuentoPct = 0;
     if (cliente.registrado && !cliente.descuentoBienvenidaUsado) {
@@ -134,6 +144,15 @@ async function citaDelCliente(citaId: number, telefono: string) {
   }
   if (cita.estado !== "AGENDADA") throw new ErrorNegocio(409, "La cita ya no está activa");
   return cita;
+}
+
+/** Estado actual de una cita, para el cliente dueño (cualquier estado). */
+export async function consultarCita(citaId: number, telefono: string) {
+  const cita = await db.cita.findUnique({ where: { id: citaId }, include: incluirDetalle });
+  if (!cita || cita.cliente.telefono !== normalizarTelefono(telefono)) {
+    throw new ErrorNegocio(404, "Cita no encontrada");
+  }
+  return presentarCita(cita);
 }
 
 export async function cancelarCita(citaId: number, telefono: string) {

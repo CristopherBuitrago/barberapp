@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, type Barbero, type HoraDisponible, type Servicio } from "../api";
 import { almacen } from "../almacen";
+import { esActiva, useCitaGuardada } from "../citaGuardada";
 import { Duracion, Marco, Pasos, Precio } from "../componentes/Marco";
 import { DIAS_CORTOS, MESES, diaSemana, fechaLarga, hora, hora24, horaCompacta, hoy, inicioSemana, sumarDias } from "../formato";
 import flechaIzq from "../assets/figma/flecha-izq.svg";
@@ -43,6 +44,12 @@ export function Reservar() {
   const [aceptaDatos, setAceptaDatos] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
+
+  // Con una cita activa no se puede reservar otra: de vuelta al catálogo, donde se ve la agendada.
+  const { cita: citaGuardada } = useCitaGuardada();
+  useEffect(() => {
+    if (esActiva(citaGuardada)) navegar("/", { replace: true });
+  }, [citaGuardada, navegar]);
 
   useEffect(() => {
     api.servicios().then((lista) => setServicio(lista.find((s) => s.id === Number(servicioId)) ?? null));

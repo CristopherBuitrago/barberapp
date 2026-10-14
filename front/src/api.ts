@@ -79,6 +79,7 @@ export const api = {
       `/disponibilidad?servicioId=${servicioId}&fecha=${fecha}${barberoId ? `&barberoId=${barberoId}` : ""}`,
     ),
   crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/citas", cita),
+  cita: (id: number, telefono: string) => pedir<Cita>("GET", `/citas/${id}?telefono=${encodeURIComponent(telefono)}`),
   cancelarCita: (id: number, telefono: string) => pedir<Cita>("POST", `/citas/${id}/cancelar`, { telefono }),
   registro: (datos: { nombre: string; telefono: string; fechaNacimiento?: string; aceptaDatos: true }) =>
     pedir<{ nombre: string; descuentoPct: number }>("POST", "/clientes/registro", datos),
