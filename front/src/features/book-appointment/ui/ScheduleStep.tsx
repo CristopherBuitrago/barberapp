@@ -3,7 +3,8 @@ import type { Barber } from "@/entities/barber";
 import { ServiceHeader, type Service } from "@/entities/service";
 import type { Slot } from "@/entities/slot";
 import { DAYS_SHORT, MONTHS, addDays, cn, longDate, startOfWeek, time12, time24, weekday } from "@/shared/lib";
-import { Price, siteActions, siteBox, siteBoxBody, siteButton, siteText } from "@/shared/ui";
+import { resolveImageUrl } from "@/shared/api";
+import { Duration, Price, siteActions, siteBox, siteBoxBody, siteButton, siteText } from "@/shared/ui";
 import arrowLeft from "@/shared/assets/figma/flecha-izq.svg";
 import arrowRight from "@/shared/assets/figma/flecha-der.svg";
 import { BOOKABLE_DAYS_PER_WEEK, DAY_PARTS, firstBookableDay, inDayPart } from "../lib/schedule";
@@ -70,11 +71,34 @@ export function ScheduleStep({
     <>
       <div className={siteBox}>
         <div className={siteBoxBody}>
-          <ServiceHeader service={service} />
-          <p className={cn(siteText.description, "mt-2! mb-[6px]!")}>{service.description}</p>
-          <div className="flex justify-end">
-            <Price value={service.price} />
-          </div>
+          {service.imageUrl ? (
+            // Con foto: miniatura a la izquierda, y la duración y el precio debajo del nombre
+            <>
+              <div className="flex items-center gap-2">
+                <img
+                  className="h-[34px] w-[46px] shrink-0 rounded-[4px] bg-db-gray-photo object-cover"
+                  src={resolveImageUrl(service.imageUrl)!}
+                  alt={service.name}
+                />
+                <div className="min-w-0 flex-1">
+                  <h2 className={siteText.title}>{service.name}</h2>
+                  <div className="mt-1 flex items-center justify-between">
+                    <Duration minutes={service.durationMin} />
+                    <Price value={service.price} />
+                  </div>
+                </div>
+              </div>
+              <p className={cn(siteText.description, "mt-2! mb-0!")}>{service.description}</p>
+            </>
+          ) : (
+            <>
+              <ServiceHeader service={service} />
+              <p className={cn(siteText.description, "mt-2! mb-[6px]!")}>{service.description}</p>
+              <div className="flex justify-end">
+                <Price value={service.price} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
