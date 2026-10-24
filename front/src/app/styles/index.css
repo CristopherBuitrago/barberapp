@@ -1,0 +1,85 @@
+/*
+ * Se carga el tema y las utilidades de Tailwind, pero no su "preflight" (el reseteo de estilos).
+ * El diseño de Figma se armó sobre los estilos normales del navegador (márgenes de los
+ * párrafos, enlaces subrayados, botones), y el reseteo los cambiaría.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --font-sans: "Albert Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Panel de la barbería */
+  --color-page: #ececec;
+  --color-card: #ffffff;
+  --color-ink: #1c1c1e;
+  --color-muted: #6b6b70;
+  --color-line: #d9d9de;
+  --color-night: #0b0b0c;
+  --color-brand: #1d4ed8;
+  --color-brand-soft: #e8eefc;
+  --color-ok: #16a34a;
+  --color-danger: #dc2626;
+  --color-whatsapp: #25d366;
+  --radius-card: 14px;
+
+  /* Web del cliente, diseño de Figma "Diego Barber" */
+  --color-db-black: #030303;
+  --color-db-panel: #d9d9d9;
+  --color-db-card-border: #a9a9a9;
+  --color-db-box-border: #afafaf;
+  --color-db-input-border: #cbcbcb;
+  --color-db-text: #363636;
+  --color-db-text-soft: #5c5c5c;
+  --color-db-text-faint: #bababa;
+  --color-db-blue: #0f38ed;
+  --color-db-step-blue: #0040ff;
+  --color-db-step-off: #dedede;
+  --color-db-step-line: #838383;
+  --color-db-day-border: #9e9e9e;
+  --color-db-red: #e31f29;
+  --color-db-green: #268e00;
+  --color-db-total: #77d65c;
+  --color-db-gray-button: #5c5c5c;
+  --color-db-gray-slot: #686868;
+  --color-db-gray-photo: #7e7e7e;
+  --color-db-orange: #f57c00;
+}
+
+@layer base {
+  /* El diseño está hecho a 320 px: el contenido se escala con --db-scale para llenar la pantalla */
+  :root {
+    --db-scale: 1;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-page);
+  }
+  @media (min-width: 360px) {
+    :root { --db-scale: 1.1; }
+  }
+  @media (min-width: 400px) {
+    :root { --db-scale: 1.2; }
+  }
+  @media (min-width: 768px) {
+    :root { --db-scale: 1.4; }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--color-page); }
+  h1, h2, h3 { margin: 0; }
+  h2 { font-size: 1.05rem; }
+  h3 { font-size: 0.9rem; margin: 18px 0 8px; color: var(--color-muted); font-weight: 600; }
+  a { color: var(--color-brand); }
+
+  /* Los select del panel, también el filtro de barberos */
+  select {
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--color-ink);
+    background: #fff;
+  }
+}

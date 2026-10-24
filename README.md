@@ -87,13 +87,35 @@ npm run dev                   # servidor del webhook
 
 La web del cliente sigue el archivo de Figma [Diego Barber](https://www.figma.com/design/lJTRg7KKFLe5rf83Gwxc5Q/Untitled) (frames `142:3` catálogo, `164:41` servicio, `165:107` fecha y hora, `165:193` confirmar, `171:2` reservado, `171:66` catálogo con botones deshabilitados). Está diseñada a 320 px de ancho.
 
-- Colores y medidas del diseño: variables `--db-*` en `front/src/estilos.css`, aplicadas solo dentro de `.pagina` (el panel conserva su estilo).
-- Logo e íconos exportados de Figma: `front/src/assets/figma/`.
+- Colores del diseño: en `front/src/app/styles/index.css`, dentro de `@theme` de Tailwind (`db-*` para la web del cliente y los demás para el panel). Las clases que se repiten están en `front/src/shared/ui/styles.ts`.
+- Logo e íconos exportados de Figma: `front/src/shared/assets/figma/`.
 - Fuente: Albert Sans (Google Fonts, en `front/index.html`).
-- Responsive: el contenido se escala con `--db-escala` (`zoom`: 1 hasta 359 px, 1.1, 1.2 desde 400 px y 1.4 desde 768 px) para que el diseño de 320 px llene el celular y se lea bien en escritorio. En pantallas anchas el catálogo pasa a cuadrícula y los pasos de la reserva quedan en una tarjeta centrada de 480 px.
+- Responsive: el contenido se escala con `--db-scale` (`zoom`: 1 hasta 359 px, 1.1, 1.2 desde 400 px y 1.4 desde 768 px) para que el diseño de 320 px llene el celular y se lea bien en escritorio. En pantallas anchas el catálogo pasa a cuadrícula y los pasos de la reserva quedan en una tarjeta centrada de 480 px.
 - Fecha: semana de lunes a sábado con flechas. Hora: se elige la jornada (Mañana / Tarde / Noche) y luego la hora; una jornada sin cupo sale en gris con "No hay horarios disponibles".
 - Una cita activa por cliente: con una cita agendada, su tarjeta en el catálogo muestra la fecha y el botón naranja **AGENDADA** (lleva al detalle para cancelarla) y los demás *Reservar* quedan en gris. El back también lo valida para la web y WhatsApp; el panel sí puede agendar varias.
 - Lo que la web ya tenía y no está en el diseño se mantuvo con el mismo estilo: aviso de descuento, botón de WhatsApp, elegir barbero, autorización de datos (Ley 1581), agregar al calendario y cancelar la cita.
+
+## Arquitectura del front
+
+Feature-Sliced Design (FSD), sin MVVM. Cada capa solo importa de las de abajo: `app` → `pages` → `widgets` → `features` → `entities` → `shared`. Dentro de cada parte van los segmentos `ui/`, `model/`, `api/` y `lib/`, y afuera solo se usa lo que exporta su `index.ts`. El código va en inglés y los comentarios en español.
+
+```
+front/src/
+├── app/          App (router y SessionProvider) y estilos: Tailwind con los colores de Figma
+├── pages/        catalog, booking, booking-confirmed, profile, register, panel-agenda, panel-services
+├── widgets/      site-layout (cabecera con menú y perfil), panel-layout, appointment-calendar, services-table
+├── features/     auth, book-appointment, cancel-appointment, track-appointment, edit-profile, app-menu,
+│                 create-panel-appointment, change-appointment-status, block-time, manage-service
+├── entities/     appointment, barber, service, session, slot, time-block
+└── shared/       api (cliente con el sobre de la API), lib (fechas, precios, localStorage, useRequest),
+                  ui (Modal, Steps, campos y clases de Tailwind), config (datos de la barbería), assets
+```
+
+- **Datos del back**: cada entidad tiene en `api/` el DTO como llega (en español), el mapper que lo pasa a su tipo en inglés y las consultas. El resto del front solo ve los tipos en inglés. Las consultas se usan con hooks propios hechos sobre `shared/lib/useRequest`.
+- **Modelos**: tipos de TypeScript y funciones con las reglas, por ejemplo `isActive(appointment)` en `entities/appointment/lib`.
+- **Entidades que se usan entre sí** (por ejemplo la cita tiene su barbero): se importan por `entities/barber/@x/<quien-lo-usa>.ts`, como pide FSD.
+- **Estilos**: Tailwind 4 sin su "preflight", porque el diseño de Figma se hizo sobre los estilos normales del navegador. Alias `@/` para `src/`.
+- **Navegador**: la sesión se guarda en `barberia.session`, la última cita en `barberia.trackedAppointment` y el contacto de la última reserva en `barberia.contact`.
 
 ## Cuentas e inicio de sesión
 
@@ -196,7 +218,7 @@ Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés 
 - En un error de validación (`VALIDATION_ERROR`), `details` dice qué campo falló: `[{ "field": "fecha", "message": "Formato YYYY-MM-DD" }]`.
 - Los códigos están en `back/src/domain/errors/ErrorCode.ts`: `SERVICE_NOT_FOUND`, `APPOINTMENT_NOT_FOUND`, `SLOT_TAKEN`, `ACTIVE_APPOINTMENT_EXISTS`, `APPOINTMENT_NOT_ACTIVE`, `TIME_IN_PAST`, `DATA_POLICY_REQUIRED`, `PHONE_ALREADY_REGISTERED`, `INVALID_CREDENTIALS`, `AUTH_REQUIRED`, `TEAM_ONLY`, `ADMIN_ONLY`, `INVALID_API_KEY`, `ROUTE_NOT_FOUND`, `INTERNAL_ERROR`, entre otros.
 - La única ruta que no usa el sobre es `GET /api/imagenes/:id`, que devuelve la imagen tal cual porque la usa un `<img>`.
-- El front (`front/src/api.ts`) y el agente (`HttpBarberiaApi`) sacan `data` del sobre, y para las listas que necesitan completas piden todas las páginas.
+- El front (`front/src/shared/api/httpClient.ts`) y el agente (`HttpBarberiaApi`) sacan `data` del sobre, y para las listas que necesitan completas piden todas las páginas.
 
 ### Rutas
 
