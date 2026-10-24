@@ -36,7 +36,7 @@ npm install
 npx prisma db push            # crea las tablas
 npm run db:seed               # servicios y barberos de ejemplo
 npm run equipo:cuenta -- --nombre Diego --telefono 3001234567 --clave "una-clave" --admin   # cuenta para el panel
-npm run dev
+npm run dev                   # o npm run build para compilar a dist/ (se corre con node dist/main.js)
 
 # 3. Front (otra terminal)
 cd front

@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "start": "tsx src/main.ts",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
     "test": "node --import tsx --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "test:unit": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
     "test:api": "node --import tsx --test --test-concurrency=1 \"tests/api/**/*.test.ts\"",
