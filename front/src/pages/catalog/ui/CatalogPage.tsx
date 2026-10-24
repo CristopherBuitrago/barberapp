@@ -5,7 +5,7 @@ import { useSession } from "@/entities/session";
 import { useTrackedAppointment } from "@/features/track-appointment";
 import { business } from "@/shared/config/business";
 import { cn, timeCompact } from "@/shared/lib";
-import { Price, siteButton, siteCard, siteText } from "@/shared/ui";
+import { PreviewNotice, Price, siteButton, siteCard, siteText } from "@/shared/ui";
 import { SiteLayout } from "@/widgets/site-layout";
 
 /** El catálogo: una tarjeta por servicio. Con una cita activa, esa queda marcada y las demás no se pueden reservar. */
@@ -13,12 +13,14 @@ export function CatalogPage() {
   const { data: services, error } = useCatalog();
   const navigate = useNavigate();
   const { appointment } = useTrackedAppointment();
-  const { user } = useSession();
+  const { user, isTeam } = useSession();
   const active = isActive(appointment) ? appointment : null;
 
   return (
     <SiteLayout>
-      {active ? (
+      {isTeam ? (
+        <PreviewNotice />
+      ) : active ? (
         <p className="m-0 rounded-[10px] border border-solid border-db-orange bg-[#fff3e0] px-3 py-[10px] text-[10px] font-bold text-[#8a4500]">
           Ya tienes una cita agendada. Para reservar otra, cancélala o espera a que pase.
         </p>

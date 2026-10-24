@@ -122,9 +122,9 @@ front/src/
 Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesión) y `2010:101` (crear cuenta).
 
 - Todos entran con **teléfono + contraseña** en `/perfil`. Si el teléfono es de un barbero con cuenta, entra al panel; si no, es un cliente.
-- Cabecera: menú a la izquierda (Panel, Servicios, Mi cita, Mi perfil, Crear cuenta, Cerrar sesión, según quién entró) y perfil a la derecha. Dentro del perfil el ícono se vuelve una **X** que regresa a donde estaba (el catálogo o el panel).
+- Cabecera: menú a la izquierda (Panel, Servicios, Barberos, Clientes, Ver la web, Mi cita, Mi perfil, Crear cuenta, Cerrar sesión, según quién entró) y perfil a la derecha. Dentro del perfil el ícono se vuelve una **X** que regresa a donde estaba (el catálogo o el panel).
 - **Clientes**: se registran en `/perfil/registro` (nombres, teléfono, contraseña, fecha de nacimiento y autorización de datos) y reciben el descuento de bienvenida. Si ya habían reservado sin cuenta, la cuenta se une a su ficha. Con sesión, la reserva usa su nombre y teléfono y el catálogo trae su cita activa del servidor (también las de WhatsApp). Se puede seguir reservando sin cuenta.
-- **Barberos y admin**: el panel ya no usa una clave compartida; pide la sesión de alguien del equipo. Su perfil no tiene fecha de nacimiento y el botón azul vuelve al panel. La cuenta se crea o cambia con:
+- **Barberos y admin**: el panel ya no usa una clave compartida; pide la sesión de alguien del equipo. Su perfil no tiene fecha de nacimiento y el botón azul vuelve al panel. El admin les da la cuenta desde `/panel/barberos` (botón *Dar cuenta*, ver [Barberos](#barberos)). Para crear la del admin, o hacer admin a alguien, está el script:
 
   ```bash
   cd back
@@ -136,7 +136,9 @@ Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesi�
 - **Sesión con JWT**: al iniciar sesión el back firma un JWT (HS256, con el secreto `JWT_SECRET`) y lo deja en la cookie `barberia_session`: httpOnly, `SameSite=Lax` y, con `COOKIE_SECURE=true`, solo por HTTPS. El front nunca ve el token y el login no lo devuelve en el JSON.
 - **Dura 30 minutos y se renueva sola** (`SESION_MINUTOS`): cada petición con sesión recibe un JWT nuevo con otros 30 minutos. Si la persona pasa media hora sin usar la web, vence y tiene que volver a iniciar sesión.
 - En cada petición el back trae al dueño de la base, así un barbero desactivado pierde la sesión de una vez.
-- Cerrar sesión borra la cookie. Como el JWT no se guarda en la base, un token que alguien haya copiado antes sigue sirviendo hasta que vence, máximo 30 minutos.
+- **Vista previa del equipo**: con sesión de barbero o admin, la web del cliente sale con el aviso *Vista previa: nada se guarda*. Se puede recorrer la reserva y al confirmar sale una pantalla de reservado de mentira; no se manda nada al back. Además el back rechaza con `403 TEAM_PREVIEW_ONLY` cualquier `POST /api/citas` con sesión del equipo. Las citas del equipo se agendan desde el panel.
+- Cerrar sesión borra la cookie. El navegador olvida a la persona de una vez, sin esperar la respuesta del back.
+- Si el back no responde en 20 segundos (o no hay red) el front deja de esperar y muestra el error en vez de quedarse en "Cargando…". Como el JWT no se guarda en la base, un token que alguien haya copiado antes sigue sirviendo hasta que vence, máximo 30 minutos.
 - El agente de WhatsApp sigue con `x-api-key` por ahora.
 - El teléfono no se edita desde el perfil (es con lo que se inicia sesión).
 
@@ -150,7 +152,7 @@ back/src/
 │   ├── entities/        clases con get, set y relaciones (Appointment, Barber, Client, Service...)
 │   ├── repositories/    interfaces (AppointmentRepository, ServiceRepository...)
 │   ├── services/        cálculo de horas libres
-│   ├── value-objects/   teléfono y zona horaria
+│   ├── value-objects/   teléfono, zona horaria y nameKey (comparar nombres sin tildes ni mayúsculas)
 │   └── errors/          NotFoundError, ConflictError, RuleViolationError...
 ├── application/
 │   ├── use-cases/       un caso de uso por archivo (CreateAppointment, Login, UpdateService...)
@@ -171,7 +173,7 @@ back/src/
 
 ### Entidades
 
-Cada entidad es una clase con sus atributos privados, `get` y `set`. Los `set` validan (un precio negativo o un nombre vacío lanzan `RuleViolationError`) y las reglas del negocio son métodos de la clase: `appointment.cancel()`, `appointment.reschedule()`, `client.register()`, `client.useWelcomeDiscount()`, `service.update()`, `session.isValidAt()`.
+Cada entidad es una clase con sus atributos privados, `get` y `set`. Los `set` validan (un precio negativo o un nombre vacío lanzan `RuleViolationError`) y las reglas del negocio son métodos de la clase: `appointment.cancel()`, `appointment.reschedule()`, `client.register()`, `client.useWelcomeDiscount()`, `service.update()`, `barber.replaceSchedules()`.
 
 Las relaciones son objetos: una `Appointment` tiene su `Client`, su `Barber` y su `Service`, un `Barber` tiene sus `WorkSchedule`, un `Service` tiene el `Barber` que lo creó y el que lo cambió, un `TimeBlock` tiene su `Barber` y una `Session` tiene su dueño (`Client` o `Barber`).
 
@@ -221,7 +223,7 @@ Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés 
 
 - `code` es fijo y sirve para decidir en el front o el agente. `message` está en español y se le puede mostrar a la persona.
 - En un error de validación (`VALIDATION_ERROR`), `details` dice qué campo falló: `[{ "field": "fecha", "message": "Formato YYYY-MM-DD" }]`.
-- Los códigos están en `back/src/domain/errors/ErrorCode.ts`: `SERVICE_NOT_FOUND`, `APPOINTMENT_NOT_FOUND`, `SLOT_TAKEN`, `ACTIVE_APPOINTMENT_EXISTS`, `APPOINTMENT_NOT_ACTIVE`, `TIME_IN_PAST`, `DATA_POLICY_REQUIRED`, `PHONE_ALREADY_REGISTERED`, `INVALID_CREDENTIALS`, `AUTH_REQUIRED`, `TEAM_ONLY`, `ADMIN_ONLY`, `INVALID_API_KEY`, `ROUTE_NOT_FOUND`, `INTERNAL_ERROR`, entre otros.
+- Los códigos están en `back/src/domain/errors/ErrorCode.ts`: `SERVICE_NOT_FOUND`, `APPOINTMENT_NOT_FOUND`, `SLOT_TAKEN`, `ACTIVE_APPOINTMENT_EXISTS`, `APPOINTMENT_NOT_ACTIVE`, `TIME_IN_PAST`, `DATA_POLICY_REQUIRED`, `PHONE_ALREADY_REGISTERED`, `SERVICE_NAME_TAKEN`, `BARBER_NAME_TAKEN`, `SCHEDULE_OVERLAP`, `INVALID_CREDENTIALS`, `AUTH_REQUIRED`, `TEAM_ONLY`, `ADMIN_ONLY`, `TEAM_PREVIEW_ONLY`, `OWN_ACCESS_LOCKED`, `INVALID_API_KEY`, `ROUTE_NOT_FOUND`, `INTERNAL_ERROR`, entre otros.
 - La única ruta que no usa el sobre es `GET /api/imagenes/:id`, que devuelve la imagen tal cual porque la usa un `<img>`.
 - El front (`front/src/shared/api/httpClient.ts`) y el agente (`HttpBarberiaApi`) sacan `data` del sobre, y para las listas que necesitan completas piden todas las páginas.
 
@@ -231,19 +233,40 @@ Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés 
 |---|---|---|
 | `GET /api/servicios`, `GET /api/barberos` | público | catálogo |
 | `GET /api/disponibilidad?servicioId&fecha&barberoId?` | público | horas libres |
-| `POST /api/citas` | público / agente | reservar (web exige aceptar datos; máximo una cita activa por cliente) |
+| `POST /api/citas` | público / agente | reservar (web exige aceptar datos; máximo una cita activa por cliente; con sesión del equipo da 403 `TEAM_PREVIEW_ONLY`) |
 | `GET /api/citas/:id?telefono` | público (con teléfono del dueño) | estado actual de la cita |
 | `POST /api/citas/:id/cancelar`, `/reprogramar` | público (con teléfono del dueño) | gestionar cita |
 | `POST /api/cuenta/login`, `/registro`, `/logout` | público / con sesión | iniciar sesión, crear cuenta de cliente (+ descuento), cerrar sesión |
 | `GET` y `PATCH /api/cuenta/yo`, `GET /api/cuenta/yo/cita-activa` | con sesión (cookie `barberia_session`) | datos del perfil y cita activa del cliente |
 | `/api/interno/*` | agente (`x-api-key`) | contacto por teléfono, agenda, bloqueos |
 | `/api/panel/*` | sesión de barbero o admin | calendario, estados, citas presenciales, bloqueos |
-| `GET`, `POST /api/panel/servicios`, `PATCH /api/panel/servicios/:id`, `POST /api/panel/imagenes` | solo admin | catálogo de servicios e imágenes (JPG, PNG o WebP, máx. 3 MB) |
+| `GET /api/panel/barberos` | sesión de barbero o admin | el equipo con su horario de la semana y si tiene cuenta |
+| `GET`, `POST /api/panel/servicios`, `PATCH /api/panel/servicios/:id`, `POST /api/panel/imagenes` | solo admin | catálogo de servicios e imágenes (JPG, PNG o WebP, máx. 3 MB). Nombre sin repetir: `409 SERVICE_NAME_TAKEN` |
+| `POST /api/panel/barberos` | solo admin | agregar barbero: `{ nombre, telefono \| null, horarios: [{ diaSemana, horaInicio, horaFin }] }` |
+| `PATCH /api/panel/barberos/:id` | solo admin | editar nombre, teléfono, semana (`horarios` la reemplaza toda) o `activo` |
+| `PUT /api/panel/barberos/:id/cuenta` | solo admin | `{ clave }`: darle cuenta del panel o cambiarle la contraseña |
+| `GET /api/panel/clientes?buscar&page&perPage` | solo admin | clientes con cuenta, autorización de datos, número de citas y última cita |
 | `GET /api/imagenes/:id` | público | imagen subida desde el panel |
 
 ## Servicios e imágenes
 
-El admin los administra en `/panel/servicios` (menú › *Administrar servicios*): nombre, descripción, duración, precio, imagen y si se ve en la web y en WhatsApp. Los servicios no se borran porque las citas pasadas los referencian; se ocultan. Las imágenes se guardan en la base (tabla `Imagen`), así que el respaldo de la base incluye todo.
+El admin los administra en `/panel/servicios` (menú › *Servicios*): nombre, descripción, duración, precio, imagen y si se ve en la web y en WhatsApp. Los servicios no se borran porque las citas pasadas los referencian; se ocultan. Las imágenes se guardan en la base (tabla `Imagen`), así que el respaldo de la base incluye todo.
+
+- **No hay dos servicios con el mismo nombre**: se compara sin mayúsculas, sin tildes y sin espacios de más, contando también los ocultos ("Corte a Máquina" choca con "corte a maquina"). Si el que existe está oculto, se vuelve a mostrar en vez de crear otro.
+- Duración y precio solo aceptan números: sin puntos, comas ni ceros adelante. Debajo del precio se ve cómo queda en pesos.
+
+## Barberos
+
+En `/panel/barberos` (menú › *Barberos*) se ve el equipo con el horario de cada día, si está activo y si tiene cuenta del panel. Todos los del equipo lo ven; solo el admin lo cambia:
+
+- **+ Barbero**: nombre, teléfono de WhatsApp (opcional) y la semana. Cada día se marca si trabaja y de qué hora a qué hora. El nombre no se repite (igual que los servicios) y el teléfono no puede ser de otro barbero ni de un cliente con cuenta, porque el login no sabría a cuál entrar.
+- **Editar**: lo mismo. El formulario maneja una jornada por día; si un día tenía la jornada partida (por ejemplo desde la base), al guardar queda de la primera hora a la última. Para el almuerzo se usa *Bloquear* en la agenda.
+- **Dar cuenta / Contraseña**: con su teléfono y esa contraseña entra al panel como barbero (agenda, citas presenciales, bloqueos). Desde aquí no se hace admin a nadie, eso queda en `npm run equipo:cuenta -- --admin`.
+- **Desactivar**: deja de salir para reservar y pierde la sesión del panel en su siguiente clic. Sus citas agendadas no se tocan, hay que moverlas o cancelarlas a mano. El admin no se puede desactivar a sí mismo.
+
+## Clientes
+
+En `/panel/clientes` (menú › *Clientes*, solo admin) está la lista de clientes en orden de nombre: teléfono (abre WhatsApp), si se registró, si aceptó el tratamiento de datos, cuántas citas tiene (también las canceladas) y la última con su estado. El buscador busca por nombre o, si se escriben números, por teléfono. Es solo para ver: los clientes aparecen solos cuando reservan por primera vez o se registran.
 
 ## Secretos
 

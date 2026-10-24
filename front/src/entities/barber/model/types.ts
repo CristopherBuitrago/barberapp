@@ -17,5 +17,7 @@ export interface TeamMember extends Barber {
   phone: string | null;
   active: boolean;
   isAdmin: boolean;
+  /** Si puede entrar al panel con su teléfono y contraseña */
+  hasAccount: boolean;
   schedules: WorkSchedule[];
 }

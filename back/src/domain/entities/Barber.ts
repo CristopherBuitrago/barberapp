@@ -1,7 +1,8 @@
 import { ensure } from "../errors/DomainError.js";
+import { ErrorCode } from "../errors/ErrorCode.js";
 import { normalizePhone } from "../value-objects/PhoneNumber.js";
 import { Entity } from "./Entity.js";
-import type { WorkSchedule } from "./WorkSchedule.js";
+import { WorkSchedule } from "./WorkSchedule.js";
 
 export interface BarberData {
   name: string;
@@ -24,10 +25,11 @@ export class Barber extends Entity {
 
   private constructor(data: BarberData, id?: number) {
     super(id);
+    // La contraseña va antes del teléfono porque el set del teléfono revisa si tiene cuenta
+    this._passwordHash = data.passwordHash;
     this.name = data.name;
     this.phone = data.phone;
     this._active = data.active;
-    this._passwordHash = data.passwordHash;
     this._isAdmin = data.isAdmin;
     this._schedules = [...data.schedules];
   }
@@ -55,9 +57,12 @@ export class Barber extends Entity {
     return this._phone;
   }
 
-  /** Se guarda como lo maneja WhatsApp, solo números y con indicativo */
+  /** Se guarda como lo maneja WhatsApp, solo números y con indicativo. Vacío es que no tiene */
   set phone(value: string | null) {
-    this._phone = value === null ? null : normalizePhone(value);
+    const phone = value === null ? "" : normalizePhone(value);
+    ensure(phone === "" || phone.length >= 7, "El teléfono no es válido");
+    ensure(phone !== "" || !this.hasAccount, "Con cuenta del panel el teléfono no puede quedar vacío, es con lo que entra");
+    this._phone = phone === "" ? null : phone;
   }
 
   get active(): boolean {
@@ -108,10 +113,25 @@ export class Barber extends Entity {
     return this._schedules.filter((s) => s.weekday === weekday);
   }
 
+  /**
+   * Cambia toda la semana de una vez. El día que no venga es que no trabaja.
+   * En un mismo día puede haber varias jornadas pero no se pueden pisar
+   */
+  replaceSchedules(days: { weekday: number; startTime: string; endTime: string }[]): void {
+    const schedules = days.map((d) => WorkSchedule.create({ barberId: this.id, ...d }));
+    for (const a of schedules) {
+      const clash = schedules.some(
+        (b) => a !== b && a.weekday === b.weekday && a.startTime < b.endTime && b.startTime < a.endTime,
+      );
+      ensure(!clash, "Dos jornadas del mismo día se pisan", ErrorCode.ScheduleOverlap);
+    }
+    this._schedules.splice(0, this._schedules.length, ...schedules);
+  }
+
   /** Le pone o le cambia la cuenta del panel */
   setAccount(phone: string, passwordHash: string, isAdmin: boolean): void {
-    this.phone = phone;
     this._passwordHash = passwordHash;
+    this.phone = phone;
     this._isAdmin = isAdmin;
   }
 }

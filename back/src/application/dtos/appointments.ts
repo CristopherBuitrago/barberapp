@@ -11,6 +11,8 @@ export interface CreateAppointmentInput {
   notes?: string;
   /** Si reserva un cliente con sesión en la web, la cita queda a su nombre */
   sessionClient?: Client;
+  /** Con sesión del equipo la web es solo una vista previa, no se reserva de verdad */
+  sessionIsTeam?: boolean;
 }
 
 export interface OwnerAppointmentInput {

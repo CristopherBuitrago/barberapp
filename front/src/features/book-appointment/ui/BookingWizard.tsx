@@ -5,8 +5,8 @@ import type { Service } from "@/entities/service";
 import { rememberedContact, useSession } from "@/entities/session";
 import type { Slot } from "@/entities/slot";
 import { ApiError } from "@/shared/api";
-import { localPhone, startOfWeek } from "@/shared/lib";
-import { Steps, siteStepCard } from "@/shared/ui";
+import { cn, localPhone, longDate, startOfWeek, time12 } from "@/shared/lib";
+import { PreviewNotice, ResultBox, Steps, resultText, siteActions, siteButton, siteStepCard } from "@/shared/ui";
 import { createAppointment } from "../api/createAppointment";
 import { firstBookableDay } from "../lib/schedule";
 import { useDaySlots } from "../model/useDaySlots";
@@ -41,9 +41,12 @@ export function BookingWizard({
   const { slots, nextAvailable, reload } = useDaySlots(service.id, date, barberId);
 
   // Con cuenta de cliente la cita va a su nombre y teléfono (el back los toma de la sesión)
-  const { user } = useSession();
+  const { user, isTeam } = useSession();
+  // El equipo solo mira cómo se ve: al confirmar no se manda nada al back
+  const [previewDone, setPreviewDone] = useState(false);
   const withAccount = user?.role === "CLIENTE";
-  const remembered = withAccount && user ? { name: user.name, phone: localPhone(user.phone) } : rememberedContact.read();
+  // En la vista previa del equipo también se llena con sus datos, para no tener que escribirlos
+  const remembered = (withAccount || isTeam) && user ? { name: user.name, phone: localPhone(user.phone) } : rememberedContact.read();
   const [contact, setContact] = useState<Contact>({
     name: remembered?.name ?? "",
     phone: remembered?.phone ?? "",
@@ -57,6 +60,10 @@ export function BookingWizard({
 
   async function confirm() {
     if (!chosen) return;
+    if (isTeam) {
+      setPreviewDone(true);
+      return;
+    }
     setSending(true);
     setError("");
     try {
@@ -83,8 +90,25 @@ export function BookingWizard({
 
   const barberName = barberId ? barbers.find((b) => b.id === barberId)?.name : chosen?.barbers[0]?.name;
 
+  if (previewDone && chosen) {
+    return (
+      <section className={siteStepCard}>
+        <ResultBox title="¡Reservado! (vista previa)">
+          <p className={resultText}>
+            No se guardó ninguna cita. Esto es lo que vería el cliente al reservar {service.name.toLowerCase()} el{" "}
+            {longDate(chosen.start)} a las {time12(chosen.start)}
+          </p>
+        </ResultBox>
+        <div className={cn(siteActions, "justify-center")}>
+          <button className={siteButton("success")} onClick={onExit}>Listo</button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={siteStepCard}>
+      {isTeam && <PreviewNotice />}
       <Steps steps={STEPS} current={step} />
 
       {step === 0 && <ServiceStep service={service} onNext={() => setStep(1)} />}

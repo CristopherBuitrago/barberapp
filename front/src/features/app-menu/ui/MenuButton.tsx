@@ -47,15 +47,17 @@ export function MenuButton({ variant }: { variant: HeaderVariant }) {
             {isTeam && <Link className={item} to="/panel">Panel</Link>}
             {/* El admin administra los servicios, los demás ven el catálogo de la web */}
             <Link className={item} to={isAdmin ? "/panel/servicios" : "/"}>Servicios</Link>
-            {isTeam && <Link className={item} to="/">Ver la web</Link>}
+            {isTeam && <Link className={item} to="/panel/barberos">Barberos</Link>}
+            {isAdmin && <Link className={item} to="/panel/clientes">Clientes</Link>}
+            {isTeam && <Link className={item} to="/">Ver la web (vista previa)</Link>}
             {!isTeam && <Link className={item} to="/reserva-confirmada">Mi cita</Link>}
             <Link className={item} to="/perfil" state={{ from: pathname }}>{user ? "Mi perfil" : "Iniciar sesión"}</Link>
             {!user && <Link className={item} to="/perfil/registro" state={{ from: pathname }}>Crear cuenta</Link>}
             {user && (
               <button
                 className={cn(item, "text-db-red")}
-                onClick={async () => {
-                  await end();
+                onClick={() => {
+                  end();
                   setOpen(false);
                   navigate("/");
                 }}

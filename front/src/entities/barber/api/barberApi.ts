@@ -8,10 +8,11 @@ export interface BarberDto {
   nombre: string;
 }
 
-interface TeamMemberDto extends BarberDto {
+export interface TeamMemberDto extends BarberDto {
   telefono: string | null;
   activo: boolean;
   esAdmin: boolean;
+  tieneCuenta: boolean;
   horarios: { id: number; diaSemana: number; horaInicio: string; horaFin: string }[];
 }
 
@@ -19,12 +20,13 @@ export function toBarber(dto: BarberDto): Barber {
   return { id: dto.id, name: dto.nombre };
 }
 
-function toTeamMember(dto: TeamMemberDto): TeamMember {
+export function toTeamMember(dto: TeamMemberDto): TeamMember {
   return {
     ...toBarber(dto),
     phone: dto.telefono,
     active: dto.activo,
     isAdmin: dto.esAdmin,
+    hasAccount: dto.tieneCuenta,
     schedules: dto.horarios.map((h) => ({ id: h.id, weekday: h.diaSemana, startTime: h.horaInicio, endTime: h.horaFin })),
   };
 }

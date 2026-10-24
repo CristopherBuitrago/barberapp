@@ -1,6 +1,7 @@
 import type { Barber } from "../../../domain/entities/Barber.js";
 import { offsetOf, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
+import { nameKey } from "../../../domain/value-objects/NameKey.js";
 import type { Db } from "./client.js";
 import { barberInclude, toBarber } from "./mappers.js";
 
@@ -39,8 +40,14 @@ export class PrismaBarberRepository implements BarberRepository {
     return row && toBarber(row);
   }
 
-  async existsWithPhone(phone: string): Promise<boolean> {
-    return (await this.db.barbero.count({ where: { telefono: phone } })) > 0;
+  async existsWithPhone(phone: string, exceptId?: number): Promise<boolean> {
+    return (await this.db.barbero.count({ where: { telefono: phone, ...(exceptId ? { NOT: { id: exceptId } } : {}) } })) > 0;
+  }
+
+  async existsWithName(name: string, exceptId?: number): Promise<boolean> {
+    // Son pocos barberos, se comparan aquí porque la base no quita tildes sola
+    const rows = await this.db.barbero.findMany({ select: { id: true, nombre: true } });
+    return rows.some((r) => r.id !== exceptId && nameKey(r.nombre) === nameKey(name));
   }
 
   async findByName(name: string): Promise<Barber | null> {
@@ -59,9 +66,14 @@ export class PrismaBarberRepository implements BarberRepository {
       claveHash: barber.passwordHash,
       esAdmin: barber.isAdmin,
     };
-    const row = barber.isNew
-      ? await this.db.barbero.create({ data, include: barberInclude })
-      : await this.db.barbero.update({ where: { id: barber.id }, data, include: barberInclude });
+    // Uno nuevo todavía no tiene jornadas, porque una jornada necesita el id del barbero
+    if (barber.isNew) return toBarber(await this.db.barbero.create({ data, include: barberInclude }));
+    // Las jornadas se reemplazan todas por las que tenga la clase
+    const horarios = {
+      deleteMany: {},
+      create: barber.schedules.map((s) => ({ diaSemana: s.weekday, horaInicio: s.startTime, horaFin: s.endTime })),
+    };
+    const row = await this.db.barbero.update({ where: { id: barber.id }, data: { ...data, horarios }, include: barberInclude });
     return toBarber(row);
   }
 }

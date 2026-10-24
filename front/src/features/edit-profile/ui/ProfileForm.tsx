@@ -65,8 +65,8 @@ export function ProfileForm({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           className={siteButton("danger", { extra: wide })}
-          onClick={async () => {
-            await end();
+          onClick={() => {
+            end();
             navigate("/");
           }}
         >

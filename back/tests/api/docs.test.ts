@@ -33,7 +33,7 @@ describe("documentación de la API", () => {
     const operations = Object.entries(doc.paths as Record<string, Record<string, unknown>>).flatMap(([path, methods]) =>
       Object.keys(methods).map((method) => ({ method: method.toUpperCase(), path })),
     );
-    assert.equal(operations.length, 30);
+    assert.equal(operations.length, 34);
     for (const { method, path } of operations) {
       // Con valores de mentira en los parámetros, lo que importa es que no responda "esa ruta no existe"
       const url = path.replace("{id}", "999").replace("{telefono}", "3000000000");

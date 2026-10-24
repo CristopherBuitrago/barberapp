@@ -1,6 +1,7 @@
 import type { Service } from "../../../domain/entities/Service.js";
 import { offsetOf, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { ServiceRepository } from "../../../domain/repositories/ServiceRepository.js";
+import { nameKey } from "../../../domain/value-objects/NameKey.js";
 import type { Db } from "./client.js";
 import { serviceInclude, toService } from "./mappers.js";
 
@@ -37,6 +38,12 @@ export class PrismaServiceRepository implements ServiceRepository {
   async findById(id: number): Promise<Service | null> {
     const row = await this.db.servicio.findUnique({ where: { id }, include: serviceInclude });
     return row && toService(row);
+  }
+
+  async existsWithName(name: string, exceptId?: number): Promise<boolean> {
+    // El catálogo es corto, se compara aquí porque la base no quita tildes sola
+    const rows = await this.db.servicio.findMany({ select: { id: true, nombre: true } });
+    return rows.some((r) => r.id !== exceptId && nameKey(r.nombre) === nameKey(name));
   }
 
   async save(service: Service): Promise<Service> {

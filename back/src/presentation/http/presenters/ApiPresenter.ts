@@ -7,6 +7,7 @@ import type { Profile } from "../../../application/dtos/accounts.js";
 import type { Appointment } from "../../../domain/entities/Appointment.js";
 import type { Barber } from "../../../domain/entities/Barber.js";
 import type { Service } from "../../../domain/entities/Service.js";
+import type { ClientWithHistory } from "../../../domain/repositories/ClientRepository.js";
 import type { TimeBlock } from "../../../domain/entities/TimeBlock.js";
 import type { AvailableSlot } from "../../../domain/services/availability.js";
 import type { TimeZone } from "../../../domain/value-objects/TimeZone.js";
@@ -26,6 +27,7 @@ export class ApiPresenter {
       telefono: barber.phone,
       activo: barber.active,
       esAdmin: barber.isAdmin,
+      tieneCuenta: barber.hasAccount,
       horarios: barber.schedules.map((s) => ({
         id: s.id,
         barberoId: s.barberId,
@@ -33,6 +35,24 @@ export class ApiPresenter {
         horaInicio: s.startTime,
         horaFin: s.endTime,
       })),
+    };
+  }
+
+  /** Para la lista de clientes del admin. Sin la contraseña ni la fecha de nacimiento */
+  clientSummary(entry: ClientWithHistory) {
+    const { client, lastAppointment } = entry;
+    return {
+      id: client.id,
+      nombre: client.name,
+      telefono: client.phone,
+      tieneCuenta: client.hasAccount,
+      aceptaDatos: client.acceptsDataPolicy,
+      citas: entry.appointmentCount,
+      ultimaCita: lastAppointment && {
+        inicio: this.timeZone.toLocalIso(lastAppointment.start),
+        estado: lastAppointment.status,
+      },
+      creadoEn: client.createdAt,
     };
   }
 

@@ -1,11 +1,16 @@
 import { useState, type FormEvent } from "react";
 import type { AdminService, ServiceFields } from "@/entities/service";
 import { resolveImageUrl } from "@/shared/api";
-import { cn } from "@/shared/lib";
+import { cn, money } from "@/shared/lib";
 import { Modal, PanelField, panelButton, panelControl, panelLink, panelText } from "@/shared/ui";
 import { createService, updateService, uploadImage } from "../api/serviceAdminApi";
 
 const EMPTY: ServiceFields = { name: "", description: "", durationMin: 30, price: 0, imageUrl: null, active: true };
+
+/** Lo que se escribe en duración y precio: solo números, sin puntos, comas ni ceros adelante */
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+}
 
 /** Crear o editar un servicio, con su imagen. Sin servicio es uno nuevo. */
 export function ServiceFormModal({
@@ -18,6 +23,9 @@ export function ServiceFormModal({
   onSaved: () => void;
 }) {
   const [fields, setFields] = useState<ServiceFields>(service ?? EMPTY);
+  // Se guardan como texto mientras se escriben, así el campo puede quedar vacío sin volverse 0
+  const [durationText, setDurationText] = useState(String((service ?? EMPTY).durationMin));
+  const [priceText, setPriceText] = useState(service ? String(service.price) : "");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const change = (part: Partial<ServiceFields>) => setFields({ ...fields, ...part });
@@ -37,7 +45,11 @@ export function ServiceFormModal({
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    const { name, description, durationMin, price, imageUrl, active } = fields;
+    const durationMin = Number(durationText);
+    const price = Number(priceText);
+    if (durationMin < 5 || durationMin > 480) return setError("La duración va de 5 a 480 minutos");
+    if (priceText === "") return setError("Escribe el precio en pesos");
+    const { name, description, imageUrl, active } = fields;
     const data = { name, description, durationMin, price, imageUrl, active };
     try {
       if (service) await updateService(service.id, data);
@@ -66,26 +78,26 @@ export function ServiceFormModal({
         <div className="flex gap-[10px]">
           <PanelField label="Duración (min)">
             <input
-              className={panelControl}
-              type="number"
-              min={5}
-              max={480}
-              step={5}
-              value={fields.durationMin}
-              onChange={(e) => change({ durationMin: Number(e.target.value) })}
+              className={cn(panelControl, "w-full min-w-0")}
+              inputMode="numeric"
+              maxLength={3}
+              value={durationText}
+              onChange={(e) => setDurationText(digitsOnly(e.target.value))}
+              placeholder="30"
               required
             />
           </PanelField>
           <PanelField label="Precio (COP)">
             <input
-              className={panelControl}
-              type="number"
-              min={0}
-              step={1000}
-              value={fields.price}
-              onChange={(e) => change({ price: Number(e.target.value) })}
+              className={cn(panelControl, "w-full min-w-0")}
+              inputMode="numeric"
+              maxLength={9}
+              value={priceText}
+              onChange={(e) => setPriceText(digitsOnly(e.target.value))}
+              placeholder="20000"
               required
             />
+            {priceText && <span className="text-[0.75rem]">{money(Number(priceText))}</span>}
           </PanelField>
         </div>
         <PanelField label="Imagen" as="div">

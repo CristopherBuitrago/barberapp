@@ -23,6 +23,7 @@ import type { ImageRepository } from "../../src/domain/repositories/ImageReposit
 import type { ServiceRepository } from "../../src/domain/repositories/ServiceRepository.js";
 import type { TimeBlockRepository } from "../../src/domain/repositories/TimeBlockRepository.js";
 import { paginate, type PageRequest } from "../../src/domain/repositories/Pagination.js";
+import { nameKey } from "../../src/domain/value-objects/NameKey.js";
 import { overlaps } from "../../src/domain/value-objects/TimeZone.js";
 
 // --- Copias de cada entidad con un id ---
@@ -184,11 +185,14 @@ export class MemoryBarberRepository implements BarberRepository {
   async findActiveByPhone(phone: string) {
     return this.all().find((b) => b.active && b.phone === phone) ?? null;
   }
-  async existsWithPhone(phone: string) {
-    return this.all().some((b) => b.phone === phone);
+  async existsWithPhone(phone: string, exceptId?: number) {
+    return this.all().some((b) => b.phone === phone && b.id !== exceptId);
   }
   async findByName(name: string) {
     return this.all().find((b) => b.name.toLowerCase() === name.toLowerCase()) ?? null;
+  }
+  async existsWithName(name: string, exceptId?: number) {
+    return this.all().some((b) => b.id !== exceptId && nameKey(b.name) === nameKey(name));
   }
   async save(barber: Barber) {
     return persist(this.store.barbers, barber, copyBarber, () => this.store.nextId());
@@ -204,6 +208,24 @@ export class MemoryClientRepository implements ClientRepository {
   async findByPhone(phone: string) {
     const c = [...this.store.clients.values()].find((x) => x.phone === phone);
     return c ? copyClient(c, c.id) : null;
+  }
+  async search(search: string | undefined, page: PageRequest) {
+    const text = search?.trim().toLowerCase() ?? "";
+    const digits = text.replace(/\D/g, "");
+    const found = [...this.store.clients.values()]
+      .filter((c) => !text || c.name.toLowerCase().includes(text) || (!!digits && c.phone.includes(digits)))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => {
+        const own = [...this.store.appointments.values()]
+          .filter((a) => a.client.id === c.id)
+          .sort((a, b) => b.start.getTime() - a.start.getTime());
+        return {
+          client: copyClient(c, c.id),
+          appointmentCount: own.length,
+          lastAppointment: own[0] ? { start: own[0].start, status: own[0].status } : null,
+        };
+      });
+    return paginate(found, page);
   }
   async save(client: Client) {
     return persist(this.store.clients, client, copyClient, () => this.store.nextId());
@@ -226,6 +248,9 @@ export class MemoryServiceRepository implements ServiceRepository {
   }
   async findById(id: number) {
     return this.all().find((s) => s.id === id) ?? null;
+  }
+  async existsWithName(name: string, exceptId?: number) {
+    return this.all().some((s) => s.id !== exceptId && nameKey(s.name) === nameKey(name));
   }
   async save(service: Service) {
     return persist(this.store.services, service, copyService, () => this.store.nextId());

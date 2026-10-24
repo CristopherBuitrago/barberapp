@@ -11,10 +11,12 @@ export interface BarberRepository {
   listAll(page: PageRequest): Promise<Page<Barber>>;
   findById(id: number): Promise<Barber | null>;
   findActiveByPhone(phone: string): Promise<Barber | null>;
-  /** Cualquiera con ese teléfono, esté activo o no */
-  existsWithPhone(phone: string): Promise<boolean>;
+  /** Cualquiera con ese teléfono, esté activo o no. exceptId es para no contarse a sí mismo al editar */
+  existsWithPhone(phone: string, exceptId?: number): Promise<boolean>;
   /** Sin importar mayúsculas */
   findByName(name: string): Promise<Barber | null>;
-  /** Guarda los datos del barbero. Las jornadas todavía no se editan desde la app */
+  /** Si otro ya se llama así, sin importar mayúsculas, tildes ni espacios (ver nameKey) */
+  existsWithName(name: string, exceptId?: number): Promise<boolean>;
+  /** Guarda los datos del barbero con su semana de jornadas tal como la tenga */
   save(barber: Barber): Promise<Barber>;
 }

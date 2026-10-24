@@ -16,7 +16,8 @@ before(async () => {
   const reg = await call("POST", "/api/cuenta/registro", {
     body: { nombre: "Cliente", telefono: "3170001111", clave: "cliente1234", aceptaDatos: true },
   });
-  client = reg.data.token;
+  // La sesión del registro llega en la cookie
+  client = reg.sessionToken!;
 });
 after(stopApi);
 

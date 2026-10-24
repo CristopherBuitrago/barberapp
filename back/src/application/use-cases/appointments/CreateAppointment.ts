@@ -2,7 +2,7 @@ import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { Appointment, BookingChannel } from "../../../domain/entities/Appointment.js";
 import type { Barber } from "../../../domain/entities/Barber.js";
 import { Client } from "../../../domain/entities/Client.js";
-import { ConflictError, NotFoundError, RuleViolationError } from "../../../domain/errors/DomainError.js";
+import { ConflictError, ForbiddenError, NotFoundError, RuleViolationError } from "../../../domain/errors/DomainError.js";
 import type { ServiceRepository } from "../../../domain/repositories/ServiceRepository.js";
 import { normalizePhone } from "../../../domain/value-objects/PhoneNumber.js";
 import { addMinutes, type TimeZone } from "../../../domain/value-objects/TimeZone.js";
@@ -23,6 +23,12 @@ export class CreateAppointment {
 
   async execute(input: CreateAppointmentInput): Promise<Appointment> {
     const isWeb = input.channel === BookingChannel.Web;
+    if (isWeb && input.sessionIsTeam) {
+      throw new ForbiddenError(
+        "Con la cuenta del equipo la web es solo una vista previa. Las citas se agendan desde el panel",
+        ErrorCode.TeamPreviewOnly,
+      );
+    }
     // Con sesión de cliente la cita es suya, se usan su nombre y su teléfono y no los del formulario
     const contact =
       isWeb && input.sessionClient

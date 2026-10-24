@@ -9,5 +9,10 @@ export interface ServiceRepository {
   /** Todos, también los ocultos, para el admin */
   findAll(page: PageRequest): Promise<Page<Service>>;
   findById(id: number): Promise<Service | null>;
+  /**
+   * Si otro servicio ya se llama así, también los ocultos, sin importar mayúsculas, tildes
+   * ni espacios (ver nameKey). exceptId es para no contarse a sí mismo al editar
+   */
+  existsWithName(name: string, exceptId?: number): Promise<boolean>;
   save(service: Service): Promise<Service>;
 }

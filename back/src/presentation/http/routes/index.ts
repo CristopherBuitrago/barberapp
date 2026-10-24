@@ -5,6 +5,7 @@ import type { AgentController } from "../controllers/AgentController.js";
 import type { AppointmentController } from "../controllers/AppointmentController.js";
 import type { AvailabilityController } from "../controllers/AvailabilityController.js";
 import type { CatalogController } from "../controllers/CatalogController.js";
+import type { ClientController } from "../controllers/ClientController.js";
 import type { ServiceAdminController } from "../controllers/ServiceAdminController.js";
 import type { TeamController } from "../controllers/TeamController.js";
 import type { TimeBlockController } from "../controllers/TimeBlockController.js";
@@ -20,6 +21,7 @@ export interface Controllers {
   timeBlocks: TimeBlockController;
   team: TeamController;
   serviceAdmin: ServiceAdminController;
+  clients: ClientController;
 }
 
 /** Lo que usa la web del cliente, y también el agente para reservar y gestionar citas. */
@@ -57,7 +59,10 @@ export function agentRoutes(c: Controllers, agentApiKey: string): Router {
   return router;
 }
 
-/** El panel, con sesión de un barbero o del admin. Los servicios son solo del admin. */
+/**
+ * El panel, con sesión de un barbero o del admin. Los servicios, cambiar el equipo y ver
+ * los clientes son solo del admin.
+ */
 export function panelRoutes(c: Controllers): Router {
   const router = Router();
   router.use(requireTeam);
@@ -68,6 +73,10 @@ export function panelRoutes(c: Controllers): Router {
   router.post("/citas", c.appointments.bookFromPanel);
   router.patch("/citas/:id/estado", c.appointments.updateStatus);
   router.get("/barberos", c.team.list);
+  router.post("/barberos", requireAdmin, c.team.create);
+  router.patch("/barberos/:id", requireAdmin, c.team.update);
+  router.put("/barberos/:id/cuenta", requireAdmin, c.team.account);
+  router.get("/clientes", requireAdmin, c.clients.list);
   router.get("/bloqueos", c.timeBlocks.list);
   router.post("/bloqueos", c.timeBlocks.create);
   router.delete("/bloqueos/:id", c.timeBlocks.remove);

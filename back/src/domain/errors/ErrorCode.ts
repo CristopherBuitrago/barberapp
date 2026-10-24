@@ -16,6 +16,9 @@ export const ErrorCode = {
   ActiveAppointmentExists: "ACTIVE_APPOINTMENT_EXISTS",
   AppointmentNotActive: "APPOINTMENT_NOT_ACTIVE",
   PhoneAlreadyRegistered: "PHONE_ALREADY_REGISTERED",
+  ServiceNameTaken: "SERVICE_NAME_TAKEN",
+  BarberNameTaken: "BARBER_NAME_TAKEN",
+  ScheduleOverlap: "SCHEDULE_OVERLAP",
 
   // No cumple una regla
   TimeInPast: "TIME_IN_PAST",
@@ -34,6 +37,8 @@ export const ErrorCode = {
   TeamOnly: "TEAM_ONLY",
   AdminOnly: "ADMIN_ONLY",
   InvalidApiKey: "INVALID_API_KEY",
+  TeamPreviewOnly: "TEAM_PREVIEW_ONLY",
+  OwnAccessLocked: "OWN_ACCESS_LOCKED",
 
   InternalError: "INTERNAL_ERROR",
 } as const;

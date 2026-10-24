@@ -18,7 +18,11 @@ import { ListAppointments } from "./application/use-cases/appointments/ListAppoi
 import { RescheduleAppointment } from "./application/use-cases/appointments/RescheduleAppointment.js";
 import { GetAvailability } from "./application/use-cases/availability/GetAvailability.js";
 import { ListActiveBarbers } from "./application/use-cases/barbers/ListActiveBarbers.js";
+import { CreateBarber } from "./application/use-cases/barbers/CreateBarber.js";
+import { GiveBarberAccount } from "./application/use-cases/barbers/GiveBarberAccount.js";
 import { ListTeam } from "./application/use-cases/barbers/ListTeam.js";
+import { UpdateBarber } from "./application/use-cases/barbers/UpdateBarber.js";
+import { ListClients } from "./application/use-cases/clients/ListClients.js";
 import { IdentifyContact } from "./application/use-cases/contacts/IdentifyContact.js";
 import { GetImage } from "./application/use-cases/images/GetImage.js";
 import { UploadImage } from "./application/use-cases/images/UploadImage.js";
@@ -47,6 +51,7 @@ import { AgentController } from "./presentation/http/controllers/AgentController
 import { AppointmentController } from "./presentation/http/controllers/AppointmentController.js";
 import { AvailabilityController } from "./presentation/http/controllers/AvailabilityController.js";
 import { CatalogController } from "./presentation/http/controllers/CatalogController.js";
+import { ClientController } from "./presentation/http/controllers/ClientController.js";
 import { ServiceAdminController } from "./presentation/http/controllers/ServiceAdminController.js";
 import { TeamController } from "./presentation/http/controllers/TeamController.js";
 import { TimeBlockController } from "./presentation/http/controllers/TimeBlockController.js";
@@ -121,7 +126,14 @@ const app = createApp({
       new DeleteTimeBlock(timeBlocks),
       presenter,
     ),
-    team: new TeamController(new ListTeam(barbers), presenter),
+    team: new TeamController(
+      new ListTeam(barbers),
+      new CreateBarber(barbers, clients, transactions),
+      new UpdateBarber(barbers, clients),
+      new GiveBarberAccount(barbers, hasher),
+      presenter,
+    ),
+    clients: new ClientController(new ListClients(clients), presenter),
     serviceAdmin: new ServiceAdminController(
       new ListServicesForAdmin(services),
       new CreateService(services, clock),

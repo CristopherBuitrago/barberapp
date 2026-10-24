@@ -72,6 +72,23 @@ export const timeBlockBody = z.object({
   motivo: z.string().max(120).optional(),
 });
 
+/** Los clientes del panel: ?buscar=ana o ?buscar=300 busca por nombre o teléfono */
+export const clientsQuery = z.object({ buscar: z.string().trim().max(80).optional() });
+
+const hour = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Formato HH:MM");
+/** La semana completa del barbero. El día que no venga es que no trabaja */
+const weekSchedules = z
+  .array(z.object({ diaSemana: z.number().int().min(0).max(6), horaInicio: hour, horaFin: hour }))
+  .max(21);
+export const barberBody = z.object({
+  nombre: name,
+  telefono: phone.nullable(),
+  horarios: weekSchedules,
+});
+/** Al editar todo es opcional, y además se puede activar o desactivar */
+export const barberUpdateBody = barberBody.partial().extend({ activo: z.boolean().optional() });
+export const barberAccountBody = z.object({ clave: password });
+
 export const serviceBody = z.object({
   nombre: z.string().trim().min(1).max(60),
   descripcion: z.string().trim().max(300),

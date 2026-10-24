@@ -43,6 +43,7 @@ export class AppointmentController {
       channel: isAgent(req, this.agentApiKey) ? BookingChannel.WhatsApp : BookingChannel.Web,
       notes: body.notas,
       sessionClient: sessionOf(res)?.client ?? undefined,
+      sessionIsTeam: sessionOf(res)?.isTeam,
     });
     sendData(res, this.presenter.appointment(appointment), 201);
   };

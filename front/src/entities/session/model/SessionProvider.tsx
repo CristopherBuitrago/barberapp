@@ -16,8 +16,8 @@ interface SessionContext {
   isAdmin: boolean;
   start: (user: User) => void;
   update: (user: User) => void;
-  /** Cierra la sesión en el back (borra la cookie) y en el navegador */
-  end: () => Promise<void>;
+  /** Cierra la sesión en el navegador de una vez y le avisa al back para que borre la cookie */
+  end: () => void;
 }
 
 const Context = createContext<SessionContext | null>(null);
@@ -55,8 +55,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     isAdmin: role === "ADMIN",
     start: save,
     update: save,
-    end: async () => {
-      await logout().catch(() => {});
+    end: () => {
+      // No se espera al back: la persona sale de una vez aunque la red esté lenta
+      logout().catch(() => {});
       // En un equipo compartido, el siguiente no debe ver nada de esta cuenta
       onEndCallbacks.forEach((callback) => callback());
       save(null);

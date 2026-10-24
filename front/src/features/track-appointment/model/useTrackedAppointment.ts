@@ -6,6 +6,8 @@ import { readStored, writeStored } from "@/shared/lib";
 
 const TRACKED_KEY = "barberia.trackedAppointment";
 
+const isTeamRole = (role: string | undefined) => role === "BARBERO" || role === "ADMIN";
+
 /** La última cita reservada desde este navegador, con el teléfono del dueño para consultarla */
 export type TrackedAppointment = Appointment & { ownerPhone: string };
 
@@ -52,9 +54,10 @@ export function useTrackedAppointment() {
       return;
     }
     const tracked = readStored<TrackedAppointment>(TRACKED_KEY);
-    if (tracked) refresh(tracked);
+    if (tracked && !isTeamRole(user?.role)) refresh(tracked);
     // Solo se vuelve a pedir cuando cambia quién tiene la sesión
   }, [user?.role, user?.phone]);
 
-  return { appointment, save };
+  // El equipo mira la web en vista previa: no tiene cita propia que mostrar
+  return { appointment: isTeamRole(user?.role) ? null : appointment, save };
 }

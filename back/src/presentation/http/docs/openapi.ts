@@ -8,7 +8,11 @@ import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import {
   agendaQuery,
   availabilityQuery,
+  barberAccountBody,
+  barberBody,
+  barberUpdateBody,
   clientProfileBody,
+  clientsQuery,
   dateRangeQuery,
   idParam,
   loginBody,
@@ -39,6 +43,12 @@ const slotTaken = e(ErrorCode.SlotTaken, "Esa hora ya no está disponible con es
 const timeInPast = e(ErrorCode.TimeInPast, "Esa hora ya pasó");
 const notActive = e(ErrorCode.AppointmentNotActive, "La cita ya no está activa");
 const invalidRange = e(ErrorCode.InvalidTimeRange, "El fin debe ser después del inicio");
+const barberNotFound = e(ErrorCode.BarberNotFound, "Barbero no encontrado");
+const serviceNameTaken = e(ErrorCode.ServiceNameTaken, 'Ya hay un servicio llamado "Corte a máquina". Si está oculto, vuelve a mostrarlo');
+const barberNameTaken = e(ErrorCode.BarberNameTaken, 'Ya hay un barbero llamado "Andrés"');
+const phoneTaken = e(ErrorCode.PhoneAlreadyRegistered, "Ese teléfono ya lo tiene otra cuenta");
+const scheduleOverlap = e(ErrorCode.ScheduleOverlap, "Dos jornadas del mismo día se pisan");
+const badSchedule = e(ErrorCode.InvalidTimeRange, "La jornada tiene que empezar antes de terminar");
 
 const page = paramsFromZod(pageQuery, "query");
 const idPath = paramsFromZod(idParam, "path");
@@ -104,6 +114,7 @@ const schemas = {
       telefono: { type: ["string", "null"], example: "573001234567" },
       activo: { type: "boolean" },
       esAdmin: { type: "boolean" },
+      tieneCuenta: { type: "boolean", description: "Si puede entrar al panel con su teléfono y contraseña" },
       horarios: {
         type: "array",
         items: {
@@ -117,6 +128,27 @@ const schemas = {
           },
         },
       },
+    },
+  },
+  ClienteResumen: {
+    type: "object",
+    description: "Cliente de la barbería con el resumen de sus citas. Nunca trae la contraseña ni la fecha de nacimiento",
+    properties: {
+      id: { type: "integer" },
+      nombre: { type: "string", example: "Ana Gómez" },
+      telefono: { type: "string", example: "573101234567" },
+      tieneCuenta: { type: "boolean", description: "Si se registró en la web" },
+      aceptaDatos: { type: "boolean", description: "Si autorizó el tratamiento de datos (Ley 1581)" },
+      citas: { type: "integer", description: "Todas sus citas, también las canceladas", example: 4 },
+      ultimaCita: nullable({
+        type: "object",
+        description: "La de fecha más reciente, sea cual sea su estado",
+        properties: {
+          inicio: { type: "string", format: "date-time", example: "2026-10-30T10:00:00-05:00" },
+          estado: { type: "string", enum: ["AGENDADA", "CANCELADA", "COMPLETADA", "NO_ASISTIO"] },
+        },
+      }),
+      creadoEn: { type: "string", format: "date-time", description: "Cuándo reservó por primera vez o se registró" },
     },
   },
   Servicio: {
@@ -286,13 +318,14 @@ const paths = {
       tags: ["Citas"],
       summary: "Agendar una cita (web o WhatsApp)",
       description:
-        "Desde la web hay que mandar cliente.aceptaDatos en true. Con sesión de cliente (cookie) la cita queda a su nombre y se ignoran el nombre y teléfono del formulario. Con la clave del agente (x-api-key) la cita queda por WhatsApp y no pide la autorización de datos. Cada cliente puede tener una sola cita activa.",
+        "Desde la web hay que mandar cliente.aceptaDatos en true. Con sesión de cliente (cookie) la cita queda a su nombre y se ignoran el nombre y teléfono del formulario. Con la clave del agente (x-api-key) la cita queda por WhatsApp y no pide la autorización de datos. Cada cliente puede tener una sola cita activa. Con sesión del equipo (barbero o admin) responde 403: para ellos la web es solo una vista previa y las citas se agendan desde el panel.",
       security: [{}, { cookieAuth: [] }, { agentKey: [] }],
       requestBody: jsonBody(newAppointment),
       responses: {
         ...ok(ref("Cita"), "Cita agendada", 201),
         ...errors({
           400: [validation, invalidJson, e(ErrorCode.DataPolicyRequired, "Debes aceptar el tratamiento de datos personales"), timeInPast],
+          403: [e(ErrorCode.TeamPreviewOnly, "Con la cuenta del equipo la web es solo una vista previa. Las citas se agendan desde el panel")],
           404: [serviceNotFound],
           409: [
             slotTaken,
@@ -487,9 +520,82 @@ const paths = {
     get: {
       tags: ["Panel"],
       summary: "Todo el equipo con sus horarios",
+      description: "La ve cualquiera del equipo. Cambiarlo es solo del admin.",
       security: team,
       parameters: page,
       responses: { ...list(ref("MiembroEquipo"), "Barberos, también los inactivos"), ...errors({ 400: [validation], 401: [teamOnly] }) },
+    },
+    post: {
+      tags: ["Equipo y clientes (admin)"],
+      summary: "Agregar un barbero con su semana",
+      description:
+        "horarios es la semana completa: una jornada por cada día que trabaja (diaSemana 0 es domingo), el día que no venga no trabaja. En un mismo día puede haber varias jornadas si no se pisan. El teléfono es opcional y va en formato WhatsApp. El nombre no se puede repetir (sin importar mayúsculas, tildes ni espacios) y el teléfono no puede ser de otro barbero ni de un cliente con cuenta. Entra activo y sin cuenta del panel, esa se da con PUT /api/panel/barberos/{id}/cuenta.",
+      security: team,
+      requestBody: jsonBody(barberBody),
+      responses: {
+        ...ok(ref("MiembroEquipo"), "Barbero creado", 201),
+        ...errors({
+          400: [validation, invalidJson, badSchedule, scheduleOverlap],
+          401: [teamOnly],
+          403: [adminOnly],
+          409: [barberNameTaken, phoneTaken],
+        }),
+      },
+    },
+  },
+  "/api/panel/barberos/{id}": {
+    patch: {
+      tags: ["Equipo y clientes (admin)"],
+      summary: "Editar un barbero, su semana o activarlo y desactivarlo",
+      description:
+        "Solo se cambian los campos que manden. Si mandan horarios, reemplazan toda la semana. Con activo en false deja de salir para reservar y pierde la sesión del panel en su siguiente petición; sus citas no se tocan. El admin no se puede desactivar a sí mismo. A alguien con cuenta no se le puede dejar el teléfono vacío porque es con lo que entra.",
+      security: team,
+      parameters: idPath,
+      requestBody: jsonBody(barberUpdateBody),
+      responses: {
+        ...ok(ref("MiembroEquipo"), "Barbero actualizado"),
+        ...errors({
+          400: [validation, invalidJson, badSchedule, scheduleOverlap],
+          401: [teamOnly],
+          403: [adminOnly, e(ErrorCode.OwnAccessLocked, "No te puedes desactivar a ti mismo")],
+          404: [barberNotFound],
+          409: [barberNameTaken, phoneTaken],
+        }),
+      },
+    },
+  },
+  "/api/panel/barberos/{id}/cuenta": {
+    put: {
+      tags: ["Equipo y clientes (admin)"],
+      summary: "Darle cuenta del panel a un barbero o cambiarle la contraseña",
+      description:
+        "Entra con su teléfono (tiene que tener uno) y esta contraseña, mínimo 6 caracteres. Queda con rol BARBERO, o ADMIN si ya lo era: desde aquí no se hace admin a nadie. La contraseña se guarda con scrypt y nunca se devuelve.",
+      security: team,
+      parameters: idPath,
+      requestBody: jsonBody(barberAccountBody),
+      responses: {
+        ...ok(ref("MiembroEquipo"), "Cuenta lista"),
+        ...errors({
+          400: [validation, invalidJson, e(ErrorCode.InvalidData, "Ponle primero un teléfono, es con lo que va a entrar")],
+          401: [teamOnly],
+          403: [adminOnly],
+          404: [barberNotFound],
+        }),
+      },
+    },
+  },
+  "/api/panel/clientes": {
+    get: {
+      tags: ["Equipo y clientes (admin)"],
+      summary: "Clientes con el resumen de sus citas",
+      description:
+        "En orden de nombre. Con buscar trae los que tengan ese texto en el nombre (sin importar mayúsculas) o, si trae números, en el teléfono. Es solo para ver: los clientes aparecen solos la primera vez que reservan o cuando se registran.",
+      security: team,
+      parameters: [...query(clientsQuery), ...page],
+      responses: {
+        ...list(ref("ClienteResumen"), "Clientes de esta página"),
+        ...errors({ 400: [validation], 401: [teamOnly], 403: [adminOnly] }),
+      },
     },
   },
   "/api/panel/bloqueos": {
@@ -540,12 +646,13 @@ const paths = {
     post: {
       tags: ["Servicios (admin)"],
       summary: "Crear un servicio",
-      description: "Queda guardado que lo creó el admin de la sesión.",
+      description:
+        "Queda guardado que lo creó el admin de la sesión. No puede haber dos servicios con el mismo nombre, contando los ocultos y sin importar mayúsculas, tildes ni espacios.",
       security: team,
       requestBody: jsonBody(serviceBody),
       responses: {
         ...ok(ref("ServicioAdmin"), "Servicio creado", 201),
-        ...errors({ 400: [validation, invalidJson], 401: [teamOnly], 403: [adminOnly] }),
+        ...errors({ 400: [validation, invalidJson], 401: [teamOnly], 403: [adminOnly], 409: [serviceNameTaken] }),
       },
     },
   },
@@ -553,13 +660,13 @@ const paths = {
     patch: {
       tags: ["Servicios (admin)"],
       summary: "Editar, ocultar o mostrar un servicio",
-      description: "Solo se cambian los campos que manden. Los servicios no se borran porque las citas pasadas los usan, se ocultan con activo en false.",
+      description: "Solo se cambian los campos que manden. Los servicios no se borran porque las citas pasadas los usan, se ocultan con activo en false. Si cambia el nombre, el nuevo no puede ser el de otro servicio (ver POST).",
       security: team,
       parameters: idPath,
       requestBody: jsonBody(serviceBody.partial()),
       responses: {
         ...ok(ref("ServicioAdmin"), "Servicio actualizado"),
-        ...errors({ 400: [validation, invalidJson], 401: [teamOnly], 403: [adminOnly], 404: [serviceNotFound] }),
+        ...errors({ 400: [validation, invalidJson], 401: [teamOnly], 403: [adminOnly], 404: [serviceNotFound], 409: [serviceNameTaken] }),
       },
     },
   },
@@ -609,6 +716,7 @@ export const openApiDocument = {
     { name: "Citas", description: "Lo que hace el cliente con su cita" },
     { name: "Panel", description: "Con sesión de un barbero o del admin" },
     { name: "Servicios (admin)", description: "Solo el admin" },
+    { name: "Equipo y clientes (admin)", description: "Solo el admin" },
     { name: "Agente de WhatsApp", description: "Solo con la clave del agente (x-api-key)" },
     { name: "Sistema" },
   ],
