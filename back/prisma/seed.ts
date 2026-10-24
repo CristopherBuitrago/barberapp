@@ -1,6 +1,9 @@
-import { db } from "../src/lib/db.js";
+import { requiredSecret } from "../src/infrastructure/config/secrets.js";
+import { createPrismaClient } from "../src/infrastructure/persistence/prisma/client.js";
 
-// Datos de ejemplo para desarrollo. Ajustar con los servicios y barberos reales.
+const db = createPrismaClient(requiredSecret("DATABASE_URL"));
+
+// Datos de ejemplo para desarrollo. Hay que cambiarlos por los servicios y barberos reales
 async function main() {
   if ((await db.servicio.count()) > 0) {
     console.log("La base ya tiene datos, no se siembra de nuevo.");

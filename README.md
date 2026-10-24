@@ -113,6 +113,48 @@ Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesi�
 - Contraseñas con scrypt; la sesión es un token aleatorio de 30 días del que la base solo guarda el SHA-256.
 - El teléfono no se edita desde el perfil (es con lo que se inicia sesión).
 
+## Arquitectura del back
+
+Arquitectura limpia por capas (no por funcionalidad). Cada capa solo conoce a las de adentro: la presentación usa la aplicación, la aplicación usa el dominio y la infraestructura implementa lo que el dominio y la aplicación piden. El código va en inglés, y la base de datos y la API siguen en español para no romper el front ni el agente.
+
+```
+back/src/
+├── domain/              reglas del negocio, sin Express ni Prisma
+│   ├── entities/        Appointment, Barber, Client, Service, TimeBlock, Session, Image
+│   ├── repositories/    interfaces (AppointmentRepository, ServiceRepository...)
+│   ├── services/        cálculo de horas libres
+│   ├── value-objects/   teléfono y zona horaria
+│   └── errors/          NotFoundError, ConflictError, RuleViolationError...
+├── application/
+│   ├── use-cases/       un caso de uso por archivo (CreateAppointment, Login, UpdateService...)
+│   ├── dtos/            lo que entra y sale de los casos de uso
+│   └── ports/           Clock, PasswordHasher, TokenService, TransactionRunner
+├── infrastructure/
+│   ├── persistence/     repositorios con Prisma y la transacción serializable
+│   ├── security/        scrypt y tokens de sesión
+│   └── config/          configuración y secretos
+├── presentation/http/
+│   ├── controllers/     reciben la petición, llaman el caso de uso y responden
+│   ├── routes/          las rutas de /api
+│   ├── middlewares/     sesión, equipo, admin, agente y errores
+│   ├── validators/      esquemas zod de lo que llega
+│   └── presenters/      arman el JSON en español que esperan el front y el agente
+└── main.ts              arma todo a mano y arranca el servidor
+```
+
+### Pruebas
+
+```bash
+cd back
+docker exec barberapp-postgres-1 psql -U barberia -d barberia -c "CREATE DATABASE barberia_test;"   # una sola vez
+DATABASE_URL="postgresql://barberia:barberia@localhost:5433/barberia_test?schema=public" npx prisma db push
+npm test            # todas
+npm run test:unit   # casos de uso y dominio con repositorios en memoria, sin base
+npm run test:api    # la API de verdad contra barberia_test
+```
+
+Las pruebas de la API borran y vuelven a cargar `barberia_test` cada vez, nunca tocan la base de desarrollo.
+
 ## API del back
 
 | Ruta | Quién | Para qué |

@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "test:unit": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
     "test:api": "node --import tsx --test --test-concurrency=1 \"tests/api/**/*.test.ts\"",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "equipo:cuenta": "tsx scripts/cuenta-equipo.ts",
+    "equipo:cuenta": "tsx scripts/team-account.ts",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
