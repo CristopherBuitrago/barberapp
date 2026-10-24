@@ -6,14 +6,14 @@
  */
 import type { Clock } from "../../src/application/ports/Clock.js";
 import type { PasswordHasher } from "../../src/application/ports/PasswordHasher.js";
-import type { TokenService } from "../../src/application/ports/TokenService.js";
+import type { SessionTokens } from "../../src/application/ports/SessionTokens.js";
 import type { TransactionalRepositories, TransactionRunner } from "../../src/application/ports/TransactionRunner.js";
 import { Appointment } from "../../src/domain/entities/Appointment.js";
 import { Barber } from "../../src/domain/entities/Barber.js";
 import { Client } from "../../src/domain/entities/Client.js";
 import { Image } from "../../src/domain/entities/Image.js";
 import { Service } from "../../src/domain/entities/Service.js";
-import { Session } from "../../src/domain/entities/Session.js";
+import type { SessionClaims } from "../../src/domain/entities/Session.js";
 import { TimeBlock } from "../../src/domain/entities/TimeBlock.js";
 import { WorkSchedule } from "../../src/domain/entities/WorkSchedule.js";
 import type { AppointmentRepository } from "../../src/domain/repositories/AppointmentRepository.js";
@@ -21,7 +21,6 @@ import type { BarberRepository } from "../../src/domain/repositories/BarberRepos
 import type { ClientRepository } from "../../src/domain/repositories/ClientRepository.js";
 import type { ImageRepository } from "../../src/domain/repositories/ImageRepository.js";
 import type { ServiceRepository } from "../../src/domain/repositories/ServiceRepository.js";
-import type { SessionRepository } from "../../src/domain/repositories/SessionRepository.js";
 import type { TimeBlockRepository } from "../../src/domain/repositories/TimeBlockRepository.js";
 import { paginate, type PageRequest } from "../../src/domain/repositories/Pagination.js";
 import { overlaps } from "../../src/domain/value-objects/TimeZone.js";
@@ -94,7 +93,6 @@ export class Store {
   services = new Map<number, Service>();
   appointments = new Map<number, Appointment>();
   timeBlocks = new Map<number, TimeBlock>();
-  sessions = new Map<number, Session>();
   images = new Map<number, Image>();
   private seq = 0;
 
@@ -199,6 +197,10 @@ export class MemoryBarberRepository implements BarberRepository {
 
 export class MemoryClientRepository implements ClientRepository {
   constructor(private readonly store: Store) {}
+  async findById(id: number) {
+    const c = this.store.clients.get(id);
+    return c ? copyClient(c, c.id) : null;
+  }
   async findByPhone(phone: string) {
     const c = [...this.store.clients.values()].find((x) => x.phone === phone);
     return c ? copyClient(c, c.id) : null;
@@ -288,25 +290,6 @@ export class MemoryTimeBlockRepository implements TimeBlockRepository {
   }
 }
 
-export class MemorySessionRepository implements SessionRepository {
-  constructor(private readonly store: Store) {}
-  async findByTokenHash(tokenHash: string) {
-    const s = [...this.store.sessions.values()].find((x) => x.tokenHash === tokenHash);
-    if (!s) return null;
-    // El dueño se trae como esté guardado ahora, igual que hace la base
-    const owner = s.client ? this.store.clients.get(s.client.id)! : this.store.barbers.get(s.barber!.id)!;
-    return Session.restore(s.id, { tokenHash: s.tokenHash, owner, expiresAt: s.expiresAt });
-  }
-  async save(session: Session) {
-    const copy = (x: Session, id: number) =>
-      Session.restore(id, { tokenHash: x.tokenHash, owner: x.owner, expiresAt: x.expiresAt });
-    return persist(this.store.sessions, session, copy, () => this.store.nextId());
-  }
-  async delete(session: Session) {
-    this.store.sessions.delete(session.id);
-  }
-}
-
 export class MemoryImageRepository implements ImageRepository {
   constructor(private readonly store: Store) {}
   async findById(id: number) {
@@ -343,14 +326,21 @@ export const fakeHasher: PasswordHasher = {
   },
 };
 
-export class CountingTokens implements TokenService {
-  private count = 0;
-  generate() {
-    const token = `token-${++this.count}`;
-    return { token, tokenHash: this.hash(token) };
+/**
+ * Tokens de mentira: "fake.<tipo>.<id>.<vence en ms>". Revisan el vencimiento con el reloj
+ * de la prueba, así se puede adelantar el tiempo sin esperar.
+ */
+export class FakeSessionTokens implements SessionTokens {
+  constructor(private readonly clock: Clock) {}
+  async sign(claims: SessionClaims, expiresAt: Date) {
+    return `fake.${claims.ownerKind}.${claims.ownerId}.${expiresAt.getTime()}`;
   }
-  hash(token: string) {
-    return `sha:${token}`;
+  async verify(token: string) {
+    const [prefix, kind, id, exp] = token.split(".");
+    if (prefix !== "fake" || (kind !== "client" && kind !== "barber")) return null;
+    const expiresAt = new Date(Number(exp));
+    if (expiresAt <= this.clock.now()) return null;
+    return { claims: { ownerKind: kind, ownerId: Number(id) } as SessionClaims, expiresAt };
   }
 }
 
@@ -362,7 +352,6 @@ export function memoryRepositories(store = new Store()) {
     clients: new MemoryClientRepository(store),
     timeBlocks: new MemoryTimeBlockRepository(store),
     services: new MemoryServiceRepository(store),
-    sessions: new MemorySessionRepository(store),
     images: new MemoryImageRepository(store),
   };
   return { store, ...repos, transactions: new MemoryTransactionRunner(repos) };

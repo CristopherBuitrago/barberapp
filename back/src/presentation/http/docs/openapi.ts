@@ -44,7 +44,7 @@ const page = paramsFromZod(pageQuery, "query");
 const idPath = paramsFromZod(idParam, "path");
 const query = (schema: z.ZodObject) => [...paramsFromZod(schema, "query")];
 
-const team = [{ bearerAuth: [] }];
+const team = [{ cookieAuth: [] }];
 const agent = [{ agentKey: [] }];
 
 const nullable = (schema: Record<string, unknown>) => ({ oneOf: [schema, { type: "null" }] });
@@ -197,7 +197,6 @@ const schemas = {
   Sesion: {
     type: "object",
     properties: {
-      token: { type: "string", description: "Va en el header Authorization: Bearer <token>. Dura 30 días" },
       usuario: ref("Usuario"),
     },
   },
@@ -287,8 +286,8 @@ const paths = {
       tags: ["Citas"],
       summary: "Agendar una cita (web o WhatsApp)",
       description:
-        "Desde la web hay que mandar cliente.aceptaDatos en true. Con sesión de cliente (Bearer) la cita queda a su nombre y se ignoran el nombre y teléfono del formulario. Con la clave del agente (x-api-key) la cita queda por WhatsApp y no pide la autorización de datos. Cada cliente puede tener una sola cita activa.",
-      security: [{}, { bearerAuth: [] }, { agentKey: [] }],
+        "Desde la web hay que mandar cliente.aceptaDatos en true. Con sesión de cliente (cookie) la cita queda a su nombre y se ignoran el nombre y teléfono del formulario. Con la clave del agente (x-api-key) la cita queda por WhatsApp y no pide la autorización de datos. Cada cliente puede tener una sola cita activa.",
+      security: [{}, { cookieAuth: [] }, { agentKey: [] }],
       requestBody: jsonBody(newAppointment),
       responses: {
         ...ok(ref("Cita"), "Cita agendada", 201),
@@ -346,7 +345,7 @@ const paths = {
       description: "Si el teléfono es de alguien del equipo entra como BARBERO o ADMIN, si no como CLIENTE.",
       requestBody: jsonBody(loginBody),
       responses: {
-        ...ok(ref("Sesion"), "Sesión iniciada"),
+        ...ok(ref("Sesion"), "Sesión iniciada. El JWT llega en la cookie httpOnly barberia_session, no en el cuerpo"),
         ...errors({ 400: [validation, invalidJson], 401: [e(ErrorCode.InvalidCredentials, "Teléfono o contraseña incorrectos")] }),
       },
     },
@@ -374,14 +373,14 @@ const paths = {
     get: {
       tags: ["Perfil"],
       summary: "Datos de quien tiene la sesión",
-      security: [{ bearerAuth: [] }],
+      security: [{ cookieAuth: [] }],
       responses: { ...ok(ref("Usuario"), "Perfil"), ...errors({ 401: [authRequired] }) },
     },
     patch: {
       tags: ["Perfil"],
       summary: "Editar el perfil",
       description: "El cliente edita nombre y fechaNacimiento (null la borra). El equipo solo el nombre. El teléfono no se cambia.",
-      security: [{ bearerAuth: [] }],
+      security: [{ cookieAuth: [] }],
       requestBody: jsonBody(clientProfileBody),
       responses: { ...ok(ref("Usuario"), "Perfil actualizado"), ...errors({ 400: [validation, invalidJson], 401: [authRequired] }) },
     },
@@ -390,8 +389,8 @@ const paths = {
     post: {
       tags: ["Autenticación"],
       summary: "Cerrar sesión",
-      security: [{ bearerAuth: [] }],
-      responses: { ...empty("Sesión cerrada, el token deja de servir"), ...errors({ 401: [authRequired] }) },
+      security: [{ cookieAuth: [] }],
+      responses: { ...empty("Sesión cerrada: se borra la cookie"), ...errors({ 401: [authRequired] }) },
     },
   },
   "/api/cuenta/yo/cita-activa": {
@@ -399,7 +398,7 @@ const paths = {
       tags: ["Perfil"],
       summary: "Próxima cita del cliente con sesión",
       description: "También las que agendó por WhatsApp. Responde null si no tiene, o si la sesión es del equipo.",
-      security: [{ bearerAuth: [] }],
+      security: [{ cookieAuth: [] }],
       responses: { ...ok(nullable(ref("Cita")), "La cita activa o null"), ...errors({ 401: [authRequired] }) },
     },
   },
@@ -598,13 +597,13 @@ export const openApiDocument = {
       "**Todas las respuestas** vienen en el mismo sobre: `{ success, data, error }`, y las listas además con `pagination { page, perPage, total }`.",
       "Las listas se piden con `?page=1&perPage=20` (máximo 100). Los errores traen un `code` fijo y un `message` en español.",
       "",
-      "**Autenticación**: el panel y la cuenta usan `Authorization: Bearer <token>` (el token sale de /api/cuenta/login). El agente usa el header `x-api-key`.",
+      "**Autenticación**: `POST /api/cuenta/login` deja un JWT en la cookie httpOnly `barberia_session` y el navegador la manda solo en cada petición, también desde esta página. La sesión dura 30 minutos y cada petición le da otros 30: se cierra sola si pasa media hora sin actividad. El agente usa el header `x-api-key`.",
     ].join("\n"),
   },
   servers: [{ url: "/", description: "Este mismo servidor" }],
   tags: [
-    { name: "Autenticación", description: "Iniciar sesión, crear cuenta y cerrar sesión. El token que devuelve el login va en Authorize" },
-    { name: "Perfil", description: "Con sesión (Bearer)" },
+    { name: "Autenticación", description: "Iniciar sesión, crear cuenta y cerrar sesión. Al iniciar sesión aquí mismo, las demás rutas ya quedan con la cookie" },
+    { name: "Perfil", description: "Con sesión (cookie)" },
     { name: "Catálogo" },
     { name: "Disponibilidad" },
     { name: "Citas", description: "Lo que hace el cliente con su cita" },
@@ -615,7 +614,12 @@ export const openApiDocument = {
   ],
   components: {
     securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", description: "Token de /api/cuenta/login" },
+      cookieAuth: {
+        type: "apiKey",
+        in: "cookie",
+        name: "barberia_session",
+        description: "JWT de la sesión. La pone /api/cuenta/login y el navegador la manda solo",
+      },
       agentKey: { type: "apiKey", in: "header", name: "x-api-key", description: "Clave del agente de WhatsApp (secreto AGENTE_API_KEY)" },
     },
     schemas,

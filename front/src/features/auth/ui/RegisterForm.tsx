@@ -37,8 +37,8 @@ export function RegisterForm() {
     try {
       const result = await register({ name: name.trim(), phone, password, birthDate: birthDate || undefined });
       rememberedContact.save({ name: name.trim(), phone });
-      setWelcome({ name: result.session.user.name, discountPct: result.welcomeDiscountPct });
-      start(result.session);
+      setWelcome({ name: result.user.name, discountPct: result.welcomeDiscountPct });
+      start(result.user);
     } catch (e) {
       setError((e as Error).message);
     } finally {

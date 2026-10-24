@@ -8,23 +8,24 @@ import { UpdateProfile } from "../../src/application/use-cases/accounts/UpdatePr
 import { SaveTeamAccount } from "../../src/application/use-cases/barbers/SaveTeamAccount.js";
 import { ConflictError, NotFoundError, UnauthorizedError } from "../../src/domain/errors/DomainError.js";
 import { ErrorCode } from "../../src/domain/errors/ErrorCode.js";
-import { CountingTokens, FixedClock, fakeHasher, memoryRepositories } from "./fakes.js";
+import { FakeSessionTokens, FixedClock, fakeHasher, memoryRepositories } from "./fakes.js";
 
 let repos: ReturnType<typeof memoryRepositories>;
 let clock: FixedClock;
-let tokens: CountingTokens;
+let tokens: FakeSessionTokens;
 let issuer: SessionIssuer;
 
 beforeEach(() => {
   repos = memoryRepositories();
   clock = new FixedClock(new Date("2026-10-26T13:00:00Z"));
-  tokens = new CountingTokens();
-  issuer = new SessionIssuer(repos.sessions, tokens, clock);
+  tokens = new FakeSessionTokens(clock);
+  issuer = new SessionIssuer(tokens, clock, 30);
 });
 
 const login = () => new Login(repos.barbers, repos.clients, fakeHasher, issuer);
 const register = () => new RegisterClient(repos.barbers, repos.clients, fakeHasher, issuer, clock, 10);
-const authenticate = () => new AuthenticateSession(repos.sessions, tokens, clock);
+const authenticate = () => new AuthenticateSession(tokens, repos.clients, repos.barbers, issuer);
+const minutes = (n: number) => new Date(clock.current.getTime() + n * 60 * 1000);
 
 describe("registro", () => {
   it("si ya había reservado sin cuenta, la cuenta queda en la misma ficha", async () => {
@@ -82,26 +83,48 @@ describe("inicio de sesión", () => {
 });
 
 describe("sesiones y perfil", () => {
-  it("el token sirve hasta que vence a los 30 días", async () => {
+  it("el token dura 30 minutos desde que se firma", async () => {
     const client = repos.store.addClient({ name: "Ana", phone: "573102220000" });
-    const token = await issuer.issue(client);
-    const session = await authenticate().execute(token);
-    assert.ok(session?.client?.equals(client));
-    clock.current = new Date(clock.current.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const issued = await issuer.issue(client);
+    assert.equal(issued.expiresAt.getTime(), minutes(30).getTime());
+    const result = await authenticate().execute(issued.token);
+    assert.ok(result?.session.client?.equals(client));
+    clock.current = minutes(31);
+    assert.equal(await authenticate().execute(issued.token), null);
+  });
+
+  it("cada vez que se usa da otros 30 minutos, así no vence mientras la persona siga activa", async () => {
+    const client = repos.store.addClient({ name: "Ana", phone: "573102220000" });
+    let token = (await issuer.issue(client)).token;
+    // Tres ratos de 20 minutos: una hora en total, pero nunca 30 minutos quieta
+    for (let i = 0; i < 3; i++) {
+      clock.current = minutes(20);
+      const result = await authenticate().execute(token);
+      assert.ok(result, `se cayó en la vuelta ${i}`);
+      assert.equal(result.renewed.expiresAt.getTime(), minutes(30).getTime());
+      token = result.renewed.token;
+    }
+    // Y si se queda quieta más de 30 minutos, vence
+    clock.current = minutes(31);
     assert.equal(await authenticate().execute(token), null);
   });
 
-  it("si desactivan al barbero, su sesión deja de servir", async () => {
+  it("si desactivan al barbero, su sesión deja de servir aunque el token no haya vencido", async () => {
     const barber = repos.store.addBarber("Andrés", { phone: "573004445566" });
-    const token = await issuer.issue(barber);
-    assert.equal((await authenticate().execute(token))?.role, "BARBERO");
+    const { token } = await issuer.issue(barber);
+    assert.equal((await authenticate().execute(token))?.session.role, "BARBERO");
     repos.store.barbers.get(barber.id)!.active = false;
     assert.equal(await authenticate().execute(token), null);
   });
 
+  it("si el dueño del token ya no existe, no hay sesión", async () => {
+    assert.equal(await authenticate().execute(`fake.client.999.${minutes(10).getTime()}`), null);
+    assert.equal(await authenticate().execute("inventado"), null);
+  });
+
   it("el cliente edita nombre y fecha, y queda guardado", async () => {
     const client = repos.store.addClient({ name: "Ana", phone: "573102220000" });
-    const session = (await authenticate().execute(await issuer.issue(client)))!;
+    const { session } = (await authenticate().execute((await issuer.issue(client)).token))!;
     const update = new UpdateProfile(repos.clients, repos.barbers);
     const profile = await update.execute({ session, name: "Ana María", birthDate: "1995-03-04" });
     assert.equal(profile.birthDate, "1995-03-04");

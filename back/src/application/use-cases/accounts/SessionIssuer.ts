@@ -1,24 +1,23 @@
 import type { Barber } from "../../../domain/entities/Barber.js";
 import type { Client } from "../../../domain/entities/Client.js";
 import { Session } from "../../../domain/entities/Session.js";
-import type { SessionRepository } from "../../../domain/repositories/SessionRepository.js";
+import type { IssuedToken } from "../../dtos/accounts.js";
 import type { Clock } from "../../ports/Clock.js";
-import type { TokenService } from "../../ports/TokenService.js";
+import type { SessionTokens } from "../../ports/SessionTokens.js";
 
-const SESSION_DAYS = 30;
-
-/** Abre una sesión nueva. Devuelve el token para el navegador y en la base solo queda su hash. */
+/**
+ * Firma el token de una sesión. Dura sessionMinutes desde ahora, y como se vuelve a firmar
+ * en cada petición, la sesión solo se cae cuando la persona deja de usar la web ese tiempo.
+ */
 export class SessionIssuer {
   constructor(
-    private readonly sessions: SessionRepository,
-    private readonly tokens: TokenService,
+    private readonly tokens: SessionTokens,
     private readonly clock: Clock,
+    private readonly sessionMinutes: number,
   ) {}
 
-  async issue(owner: Client | Barber): Promise<string> {
-    const { token, tokenHash } = this.tokens.generate();
-    const expiresAt = new Date(this.clock.now().getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-    await this.sessions.save(Session.open(owner, tokenHash, expiresAt));
-    return token;
+  async issue(owner: Client | Barber): Promise<IssuedToken> {
+    const expiresAt = new Date(this.clock.now().getTime() + this.sessionMinutes * 60 * 1000);
+    return { token: await this.tokens.sign(Session.claimsOf(owner), expiresAt), expiresAt };
   }
 }

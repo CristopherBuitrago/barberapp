@@ -4,6 +4,7 @@ import type { AuthenticateSession } from "../../../application/use-cases/account
 import type { Session } from "../../../domain/entities/Session.js";
 import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { sendError } from "../responses.js";
+import { SESSION_COOKIE, clearSessionCookie, readCookie, setSessionCookie, type CookieOptions } from "../sessionCookie.js";
 
 /** Compara dos claves sin dar pistas por lo que se demora. */
 function safeEqual(a: string | undefined, b: string): boolean {
@@ -13,11 +14,22 @@ function safeEqual(a: string | undefined, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-/** Lee el header Authorization: Bearer <token> y deja la sesión en res.locals si sirve. */
-export function readSession(authenticate: AuthenticateSession): RequestHandler {
+/**
+ * Lee el JWT de la cookie y deja la sesión en res.locals si sirve. Cada petición con sesión
+ * le devuelve al navegador un token nuevo con otros 30 minutos. Si el token ya no sirve,
+ * se borra la cookie.
+ */
+export function readSession(authenticate: AuthenticateSession, cookie: CookieOptions): RequestHandler {
   return async (req, res, next) => {
-    const token = req.header("authorization")?.match(/^Bearer (.+)$/)?.[1];
-    if (token) res.locals.session = await authenticate.execute(token);
+    const token = readCookie(req, SESSION_COOKIE);
+    if (!token) return next();
+    const result = await authenticate.execute(token);
+    if (result) {
+      res.locals.session = result.session;
+      setSessionCookie(res, result.renewed, cookie);
+    } else {
+      clearSessionCookie(res, cookie);
+    }
     next();
   };
 }

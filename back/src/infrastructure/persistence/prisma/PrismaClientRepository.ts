@@ -6,6 +6,11 @@ import { toClient } from "./mappers.js";
 export class PrismaClientRepository implements ClientRepository {
   constructor(private readonly db: Db) {}
 
+  async findById(id: number): Promise<Client | null> {
+    const row = await this.db.cliente.findUnique({ where: { id } });
+    return row && toClient(row);
+  }
+
   async findByPhone(phone: string): Promise<Client | null> {
     const row = await this.db.cliente.findUnique({ where: { telefono: phone } });
     return row && toClient(row);

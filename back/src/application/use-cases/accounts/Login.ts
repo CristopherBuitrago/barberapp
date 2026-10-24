@@ -23,13 +23,13 @@ export class Login {
     const barber = await this.barbers.findActiveByPhone(phone);
     const teamMember = barber?.hasAccount ? barber : null;
     if (teamMember && (await this.hasher.verify(input.password, teamMember.passwordHash!))) {
-      return { token: await this.sessionIssuer.issue(teamMember), profile: profileOf(teamMember) };
+      return { session: await this.sessionIssuer.issue(teamMember), profile: profileOf(teamMember) };
     }
 
     // Si el teléfono es del equipo no se prueba como cliente, aunque la contraseña no haya servido
     const client = teamMember ? null : await this.clients.findByPhone(phone);
     if (client?.hasAccount && (await this.hasher.verify(input.password, client.passwordHash!))) {
-      return { token: await this.sessionIssuer.issue(client), profile: profileOf(client) };
+      return { session: await this.sessionIssuer.issue(client), profile: profileOf(client) };
     }
 
     throw new UnauthorizedError("Teléfono o contraseña incorrectos", ErrorCode.InvalidCredentials);

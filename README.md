@@ -115,7 +115,7 @@ front/src/
 - **Modelos**: tipos de TypeScript y funciones con las reglas, por ejemplo `isActive(appointment)` en `entities/appointment/lib`.
 - **Entidades que se usan entre sí** (por ejemplo la cita tiene su barbero): se importan por `entities/barber/@x/<quien-lo-usa>.ts`, como pide FSD.
 - **Estilos**: Tailwind 4 sin su "preflight", porque el diseño de Figma se hizo sobre los estilos normales del navegador. Alias `@/` para `src/`.
-- **Navegador**: la sesión se guarda en `barberia.session`, la última cita en `barberia.trackedAppointment` y el contacto de la última reserva en `barberia.contact`.
+- **Navegador**: el token de la sesión va en una cookie httpOnly que el front nunca ve. En `localStorage` solo quedan los datos para pintar la web: quién es (`barberia.user`), la última cita (`barberia.trackedAppointment`) y el contacto de la última reserva (`barberia.contact`).
 
 ## Cuentas e inicio de sesión
 
@@ -132,7 +132,12 @@ Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesi�
   ```
 
   Ese teléfono es también el que el agente de WhatsApp atiende en "modo barbero".
-- Contraseñas con scrypt; la sesión es un token aleatorio de 30 días del que la base solo guarda el SHA-256.
+- Contraseñas con scrypt.
+- **Sesión con JWT**: al iniciar sesión el back firma un JWT (HS256, con el secreto `JWT_SECRET`) y lo deja en la cookie `barberia_session`: httpOnly, `SameSite=Lax` y, con `COOKIE_SECURE=true`, solo por HTTPS. El front nunca ve el token y el login no lo devuelve en el JSON.
+- **Dura 30 minutos y se renueva sola** (`SESION_MINUTOS`): cada petición con sesión recibe un JWT nuevo con otros 30 minutos. Si la persona pasa media hora sin usar la web, vence y tiene que volver a iniciar sesión.
+- En cada petición el back trae al dueño de la base, así un barbero desactivado pierde la sesión de una vez.
+- Cerrar sesión borra la cookie. Como el JWT no se guarda en la base, un token que alguien haya copiado antes sigue sirviendo hasta que vence, máximo 30 minutos.
+- El agente de WhatsApp sigue con `x-api-key` por ahora.
 - El teléfono no se edita desde el perfil (es con lo que se inicia sesión).
 
 ## Arquitectura del back
@@ -191,7 +196,7 @@ Las pruebas de la API borran y vuelven a cargar `barberia_test` cada vez, nunca 
 
 Con el back corriendo:
 
-- **http://localhost:3000/api/docs**: pantalla de Swagger con cada ruta, lo que recibe, lo que responde y sus códigos de error. Se puede probar cada ruta desde ahí. Para las del panel, inicia sesión con `POST /api/cuenta/login`, copia el `token` y pégalo en **Authorize** (`bearerAuth`). Para las del agente, pon la clave en `agentKey`.
+- **http://localhost:3000/api/docs**: pantalla de Swagger con cada ruta, lo que recibe, lo que responde y sus códigos de error. Se puede probar cada ruta desde ahí. Para las del panel, ejecuta `POST /api/cuenta/login` desde la misma pantalla: la cookie de sesión queda en el navegador y las demás rutas ya la mandan solas. Para las del agente, pon la clave en `agentKey`.
 - **http://localhost:3000/api/docs/openapi.json**: el documento OpenAPI 3.1, para importarlo en Postman o Insomnia.
 
 El documento está en `back/src/presentation/http/docs/openapi.ts`. Lo que se manda sale de los mismos esquemas zod que validan las peticiones. Lo que se responde está escrito ahí, así que si cambias un presenter hay que cambiarlo también en ese archivo. La prueba `tests/api/docs.test.ts` avisa si se documenta una ruta que no existe o una respuesta sin el sobre.
@@ -230,7 +235,7 @@ Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés 
 | `GET /api/citas/:id?telefono` | público (con teléfono del dueño) | estado actual de la cita |
 | `POST /api/citas/:id/cancelar`, `/reprogramar` | público (con teléfono del dueño) | gestionar cita |
 | `POST /api/cuenta/login`, `/registro`, `/logout` | público / con sesión | iniciar sesión, crear cuenta de cliente (+ descuento), cerrar sesión |
-| `GET` y `PATCH /api/cuenta/yo`, `GET /api/cuenta/yo/cita-activa` | con sesión (`Authorization: Bearer`) | datos del perfil y cita activa del cliente |
+| `GET` y `PATCH /api/cuenta/yo`, `GET /api/cuenta/yo/cita-activa` | con sesión (cookie `barberia_session`) | datos del perfil y cita activa del cliente |
 | `/api/interno/*` | agente (`x-api-key`) | contacto por teléfono, agenda, bloqueos |
 | `/api/panel/*` | sesión de barbero o admin | calendario, estados, citas presenciales, bloqueos |
 | `GET`, `POST /api/panel/servicios`, `PATCH /api/panel/servicios/:id`, `POST /api/panel/imagenes` | solo admin | catálogo de servicios e imágenes (JPG, PNG o WebP, máx. 3 MB) |
@@ -242,7 +247,7 @@ El admin los administra en `/panel/servicios` (menú › *Administrar servicios*
 
 ## Secretos
 
-Las claves (`DATABASE_URL`, `AGENTE_API_KEY`, `BACK_API_KEY`, `ANTHROPIC_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`) se leen primero de un archivo: `/run/secrets/<nombre en minúsculas>` (como los monta Docker) o la ruta en `<NOMBRE>_FILE`. Si no hay archivo, se usa la variable del `.env`, que queda solo para desarrollo.
+Las claves (`DATABASE_URL`, `JWT_SECRET`, `AGENTE_API_KEY`, `BACK_API_KEY`, `ANTHROPIC_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`) se leen primero de un archivo: `/run/secrets/<nombre en minúsculas>` (como los monta Docker) o la ruta en `<NOMBRE>_FILE`. Si no hay archivo, se usa la variable del `.env`, que queda solo para desarrollo.
 
 ## Pendiente (siguientes fases)
 

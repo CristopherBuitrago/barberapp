@@ -21,9 +21,9 @@ export function LoginForm() {
     setSending(true);
     setError("");
     try {
-      const session = await login(phone, password);
-      start(session);
-      const team = session.user.role !== "CLIENTE";
+      const user = await login(phone, password);
+      start(user);
+      const team = user.role !== "CLIENTE";
       const from = state?.from;
       // El equipo vuelve al panel y el cliente a donde estaba, nunca al panel
       navigate(team ? (from?.startsWith("/panel") ? from : "/panel") : from && !from.startsWith("/panel") ? from : "/");

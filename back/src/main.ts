@@ -6,7 +6,6 @@ import { systemClock } from "./application/ports/Clock.js";
 import { AuthenticateSession } from "./application/use-cases/accounts/AuthenticateSession.js";
 import { GetActiveAppointment } from "./application/use-cases/accounts/GetActiveAppointment.js";
 import { Login } from "./application/use-cases/accounts/Login.js";
-import { Logout } from "./application/use-cases/accounts/Logout.js";
 import { RegisterClient } from "./application/use-cases/accounts/RegisterClient.js";
 import { SessionIssuer } from "./application/use-cases/accounts/SessionIssuer.js";
 import { UpdateProfile } from "./application/use-cases/accounts/UpdateProfile.js";
@@ -38,11 +37,10 @@ import { PrismaBarberRepository } from "./infrastructure/persistence/prisma/Pris
 import { PrismaClientRepository } from "./infrastructure/persistence/prisma/PrismaClientRepository.js";
 import { PrismaImageRepository } from "./infrastructure/persistence/prisma/PrismaImageRepository.js";
 import { PrismaServiceRepository } from "./infrastructure/persistence/prisma/PrismaServiceRepository.js";
-import { PrismaSessionRepository } from "./infrastructure/persistence/prisma/PrismaSessionRepository.js";
 import { PrismaTimeBlockRepository } from "./infrastructure/persistence/prisma/PrismaTimeBlockRepository.js";
 import { PrismaTransactionRunner } from "./infrastructure/persistence/prisma/PrismaTransactionRunner.js";
 import { ScryptPasswordHasher } from "./infrastructure/security/ScryptPasswordHasher.js";
-import { Sha256TokenService } from "./infrastructure/security/Sha256TokenService.js";
+import { JwtSessionTokens } from "./infrastructure/security/JwtSessionTokens.js";
 import { createApp } from "./presentation/http/app.js";
 import { AccountController } from "./presentation/http/controllers/AccountController.js";
 import { AgentController } from "./presentation/http/controllers/AgentController.js";
@@ -65,15 +63,15 @@ const barbers = new PrismaBarberRepository(prisma);
 const clients = new PrismaClientRepository(prisma);
 const images = new PrismaImageRepository(prisma);
 const services = new PrismaServiceRepository(prisma);
-const sessions = new PrismaSessionRepository(prisma);
 const timeBlocks = new PrismaTimeBlockRepository(prisma);
 const transactions = new PrismaTransactionRunner(prisma);
 const hasher = new ScryptPasswordHasher();
-const tokens = new Sha256TokenService();
+const sessionTokens = new JwtSessionTokens(config.jwtSecret);
+const sessionCookie = { secure: config.cookieSecure };
 
 // Casos de uso que se usan en más de un controlador
-const sessionIssuer = new SessionIssuer(sessions, tokens, clock);
-const authenticateSession = new AuthenticateSession(sessions, tokens, clock);
+const sessionIssuer = new SessionIssuer(sessionTokens, clock, config.sessionMinutes);
+const authenticateSession = new AuthenticateSession(sessionTokens, clients, barbers, sessionIssuer);
 const createTimeBlock = new CreateTimeBlock(timeBlocks, barbers);
 
 const presenter = new ApiPresenter(timeZone);
@@ -82,6 +80,7 @@ const app = createApp({
   frontOrigin: config.frontOrigin,
   agentApiKey: config.agentApiKey,
   authenticateSession,
+  sessionCookie,
   controllers: {
     catalog: new CatalogController(
       new ListCatalog(services),
@@ -107,9 +106,9 @@ const app = createApp({
       new Login(barbers, clients, hasher, sessionIssuer),
       new RegisterClient(barbers, clients, hasher, sessionIssuer, clock, config.welcomeDiscountPct),
       new UpdateProfile(clients, barbers),
-      new Logout(sessions),
       new GetActiveAppointment(appointments, clock),
       presenter,
+      sessionCookie,
     ),
     agent: new AgentController(
       new IdentifyContact(barbers, clients, appointments, clock, config.welcomeDiscountPct),

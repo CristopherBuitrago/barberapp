@@ -233,17 +233,17 @@ describe("TimeBlock, Session e Image", () => {
     assert.throws(() => TimeBlock.create({ barber: diego, start: at("12:00"), end: at("12:00") }), RuleViolationError);
   });
 
-  it("la sesión sabe de quién es, y se cae si vence o si desactivan al barbero", () => {
+  it("la sesión sabe de quién es, y un barbero desactivado ya no la puede usar", () => {
     const diego = barber(1, "Diego");
-    const session = Session.open(diego, "hash", at("20:00"));
+    const session = new Session(diego, at("20:00"));
     assert.equal(session.role, "BARBERO");
     assert.equal(session.barber, diego);
     assert.equal(session.client, null);
-    assert.ok(session.isValidAt(at("10:00")));
-    assert.ok(!session.isValidAt(at("20:00")));
+    assert.deepEqual(Session.claimsOf(diego), { ownerKind: "barber", ownerId: 1 });
+    assert.ok(session.ownerCanUseIt);
     diego.active = false;
-    assert.ok(!session.isValidAt(at("10:00")));
-    assert.equal(Session.open(laura(), "hash", at("20:00")).role, "CLIENTE");
+    assert.ok(!session.ownerCanUseIt);
+    assert.equal(new Session(laura(), at("20:00")).role, "CLIENTE");
   });
 
   it("solo se suben imágenes JPG, PNG o WebP", () => {

@@ -24,7 +24,7 @@ describe("documentación de la API", () => {
     const res = await fetch(`${BASE}/api/docs/openapi.json`);
     const doc = await res.json();
     assert.equal(doc.openapi, "3.1.0");
-    assert.ok(doc.components.securitySchemes.bearerAuth);
+    assert.ok(doc.components.securitySchemes.cookieAuth);
     assert.ok(doc.components.securitySchemes.agentKey);
   });
 

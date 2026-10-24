@@ -29,8 +29,14 @@ export interface Profile {
   birthDate: string | null;
 }
 
-export interface LoginResult {
+/** El token firmado y cuándo vence, para ponerlo en la cookie */
+export interface IssuedToken {
   token: string;
+  expiresAt: Date;
+}
+
+export interface LoginResult {
+  session: IssuedToken;
   profile: Profile;
 }
 

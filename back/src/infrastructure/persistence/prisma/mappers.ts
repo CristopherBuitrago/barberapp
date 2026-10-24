@@ -9,7 +9,6 @@ import { Barber } from "../../../domain/entities/Barber.js";
 import { Client } from "../../../domain/entities/Client.js";
 import { Image } from "../../../domain/entities/Image.js";
 import { Service } from "../../../domain/entities/Service.js";
-import { Session } from "../../../domain/entities/Session.js";
 import { TimeBlock } from "../../../domain/entities/TimeBlock.js";
 import { WorkSchedule } from "../../../domain/entities/WorkSchedule.js";
 
@@ -30,13 +29,11 @@ export const appointmentInclude = {
 
 export const timeBlockInclude = { barbero: { include: barberInclude } } satisfies Prisma.BloqueoHorarioInclude;
 
-export const sessionInclude = { cliente: true, barbero: { include: barberInclude } } satisfies Prisma.SesionInclude;
 
 type BarberRow = Prisma.BarberoGetPayload<{ include: typeof barberInclude }>;
 type ServiceRow = Prisma.ServicioGetPayload<{ include: typeof serviceInclude }>;
 type AppointmentRow = Prisma.CitaGetPayload<{ include: typeof appointmentInclude }>;
 type TimeBlockRow = Prisma.BloqueoHorarioGetPayload<{ include: typeof timeBlockInclude }>;
-type SessionRow = Prisma.SesionGetPayload<{ include: typeof sessionInclude }>;
 
 // --- De la fila a la clase ---
 
@@ -99,12 +96,6 @@ export function toAppointment(row: AppointmentRow): Appointment {
 
 export function toTimeBlock(row: TimeBlockRow): TimeBlock {
   return TimeBlock.restore(row.id, { barber: toBarber(row.barbero), start: row.inicio, end: row.fin, reason: row.motivo });
-}
-
-export function toSession(row: SessionRow): Session | null {
-  const owner = row.cliente ? toClient(row.cliente) : row.barbero ? toBarber(row.barbero) : null;
-  if (!owner) return null;
-  return Session.restore(row.id, { tokenHash: row.tokenHash, owner, expiresAt: row.expira });
 }
 
 export function toImage(row: Imagen): Image {

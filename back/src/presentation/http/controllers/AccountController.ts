@@ -2,29 +2,33 @@ import type { RequestHandler } from "express";
 import { sessionProfile } from "../../../application/use-cases/accounts/profile.js";
 import type { GetActiveAppointment } from "../../../application/use-cases/accounts/GetActiveAppointment.js";
 import type { Login } from "../../../application/use-cases/accounts/Login.js";
-import type { Logout } from "../../../application/use-cases/accounts/Logout.js";
 import type { RegisterClient } from "../../../application/use-cases/accounts/RegisterClient.js";
 import type { UpdateProfile } from "../../../application/use-cases/accounts/UpdateProfile.js";
 import { requiredSession } from "../middlewares/auth.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
 import { sendData } from "../responses.js";
+import { clearSessionCookie, setSessionCookie, type CookieOptions } from "../sessionCookie.js";
 import { clientProfileBody, loginBody, registerBody, teamProfileBody } from "../validators/schemas.js";
 
-/** Cuentas de la web. Clientes y equipo entran con teléfono y contraseña. */
+/**
+ * Cuentas de la web. Clientes y equipo entran con teléfono y contraseña. El JWT de la
+ * sesión va en una cookie httpOnly, nunca en el cuerpo de la respuesta.
+ */
 export class AccountController {
   constructor(
     private readonly loginUseCase: Login,
     private readonly registerClient: RegisterClient,
     private readonly updateProfile: UpdateProfile,
-    private readonly logoutUseCase: Logout,
     private readonly getActiveAppointment: GetActiveAppointment,
     private readonly presenter: ApiPresenter,
+    private readonly cookie: CookieOptions,
   ) {}
 
   login: RequestHandler = async (req, res) => {
     const body = loginBody.parse(req.body);
     const result = await this.loginUseCase.execute({ phone: body.telefono, password: body.clave });
-    sendData(res, { token: result.token, usuario: this.presenter.profile(result.profile) });
+    setSessionCookie(res, result.session, this.cookie);
+    sendData(res, { usuario: this.presenter.profile(result.profile) });
   };
 
   register: RequestHandler = async (req, res) => {
@@ -35,11 +39,8 @@ export class AccountController {
       password: body.clave,
       birthDate: body.fechaNacimiento,
     });
-    sendData(
-      res,
-      { token: result.token, usuario: this.presenter.profile(result.profile), descuentoPct: result.welcomeDiscountPct },
-      201,
-    );
+    setSessionCookie(res, result.session, this.cookie);
+    sendData(res, { usuario: this.presenter.profile(result.profile), descuentoPct: result.welcomeDiscountPct }, 201);
   };
 
   me: RequestHandler = (_req, res) => {
@@ -56,8 +57,9 @@ export class AccountController {
     sendData(res, this.presenter.profile(profile));
   };
 
-  logout: RequestHandler = async (_req, res) => {
-    await this.logoutUseCase.execute(requiredSession(res));
+  /** Con JWT no hay nada que borrar en la base: se borra la cookie y el navegador se queda sin sesión */
+  logout: RequestHandler = (_req, res) => {
+    clearSessionCookie(res, this.cookie);
     sendData(res, null);
   };
 

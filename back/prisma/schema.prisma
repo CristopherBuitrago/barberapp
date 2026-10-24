@@ -18,7 +18,6 @@ model Barbero {
   claveHash String?
   esAdmin   Boolean          @default(false)
   horarios  HorarioBarbero[]
-  sesiones  Sesion[]
   bloqueos  BloqueoHorario[]
   citas     Cita[]
   serviciosCreados      Servicio[] @relation("ServiciosCreados")
@@ -84,21 +83,8 @@ model Cliente {
   claveHash                String?
   creadoEn                 DateTime  @default(now())
   citas                    Cita[]
-  sesiones                 Sesion[]
 }
-
-// Sesión iniciada en la web: de un cliente o de alguien del equipo (barbero/admin).
-model Sesion {
-  id        Int      @id @default(autoincrement())
-  // SHA-256 del token que guarda el navegador; el token en claro nunca se guarda.
-  tokenHash String   @unique
-  clienteId Int?
-  cliente   Cliente? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  barberoId Int?
-  barbero   Barbero? @relation(fields: [barberoId], references: [id], onDelete: Cascade)
-  expira    DateTime
-  creadaEn  DateTime @default(now())
-}
+// Las sesiones no se guardan en la base: van en un JWT firmado dentro de una cookie httpOnly
 
 enum EstadoCita {
   AGENDADA

@@ -3,7 +3,7 @@
  *   { success, data, error } y las listas además con pagination { page, perPage, total }
  * Aquí se saca data del sobre y los errores se lanzan como ApiError con su código.
  */
-import { authToken } from "./authToken";
+import { sessionEvents } from "./sessionEvents";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 const PER_PAGE = 100;
@@ -27,14 +27,16 @@ export class ApiError extends Error {
 }
 
 async function send<T>(method: string, path: string, body?: BodyInit, contentType = "application/json"): Promise<Envelope<T>> {
-  const token = authToken.get();
   const res = await fetch(`${BASE}/api${path}`, {
     method,
-    headers: { "Content-Type": contentType, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { "Content-Type": contentType },
     body,
+    // Para que el navegador mande la cookie de sesión también si el back está en otro dominio
+    credentials: "include",
   });
   const envelope = (await res.json().catch(() => null)) as Envelope<T> | null;
-  if (res.status === 401 && token) authToken.expired();
+  // Un 401 es que no hay sesión (venció o la cerraron), menos cuando es la contraseña equivocada del login
+  if (res.status === 401 && envelope?.error?.code !== "INVALID_CREDENTIALS") sessionEvents.expired();
   if (!envelope?.success) {
     throw new ApiError(envelope?.error?.code ?? "UNKNOWN", envelope?.error?.message ?? `Error ${res.status}`, res.status);
   }

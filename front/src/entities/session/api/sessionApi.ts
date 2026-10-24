@@ -1,5 +1,5 @@
 import { http } from "@/shared/api";
-import type { Role, StoredSession, User } from "../model/types";
+import type { Role, User } from "../model/types";
 
 /** Como lo manda la API */
 export interface UserDto {
@@ -9,8 +9,8 @@ export interface UserDto {
   fechaNacimiento: string | null;
 }
 
+/** Lo que responden el login y el registro. El token no viene aquí, llega en la cookie httpOnly */
 export interface SessionDto {
-  token: string;
   usuario: UserDto;
 }
 
@@ -18,9 +18,7 @@ export function toUser(dto: UserDto): User {
   return { role: dto.rol, name: dto.nombre, phone: dto.telefono, birthDate: dto.fechaNacimiento };
 }
 
-export function toStoredSession(dto: SessionDto): StoredSession {
-  return { token: dto.token, user: toUser(dto.usuario) };
-}
+
 
 /** Los datos al día de quien tiene la sesión */
 export async function getMe(): Promise<User> {

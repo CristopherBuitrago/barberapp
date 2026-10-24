@@ -42,7 +42,7 @@ export class RegisterClient {
     const saved = await this.clients.save(client);
 
     return {
-      token: await this.sessionIssuer.issue(saved),
+      session: await this.sessionIssuer.issue(saved),
       profile: profileOf(saved),
       welcomeDiscountPct: saved.hasPendingWelcomeDiscount ? this.welcomeDiscountPct : 0,
     };

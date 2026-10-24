@@ -29,8 +29,10 @@ describe("cuentas", () => {
       body: { nombre: "Sofía R", telefono: "3201112222", clave: "sofia1234", fechaNacimiento: "1999-05-20", aceptaDatos: true },
     });
     assert.equal(res.status, 201);
-    clientToken = res.data.token;
-    assert.equal(typeof clientToken, "string");
+    // El JWT llega en la cookie, nunca en el cuerpo
+    assert.equal(res.data.token, undefined);
+    assert.ok(res.sessionToken);
+    clientToken = res.sessionToken!;
     assert.deepEqual(res.data.usuario, {
       rol: "CLIENTE",
       nombre: "Sofía R",
@@ -121,11 +123,16 @@ describe("cuentas", () => {
     assert.equal(res.data, null);
   });
 
-  it("al cerrar sesión el token deja de servir", async () => {
+  it("al cerrar sesión se borra la cookie, y sin cookie no hay sesión", async () => {
     const out = await call("POST", "/api/cuenta/logout", { token: clientToken });
     assert.equal(out.status, 200);
     assert.equal(out.data, null);
-    const me = await call("GET", "/api/cuenta/yo", { token: clientToken });
+    // La última Set-Cookie de la sesión la deja vacía y vencida
+    const last = out.setCookies.filter((c) => c.startsWith("barberia_session=")).at(-1)!;
+    assert.match(last, /^barberia_session=;/);
+    assert.match(last, /Expires=Thu, 01 Jan 1970/);
+
+    const me = await call("GET", "/api/cuenta/yo");
     assert.equal(me.status, 401);
     assert.deepEqual(me.error, { code: "AUTH_REQUIRED", message: "Inicia sesión para continuar", details: null });
   });

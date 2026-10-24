@@ -12,6 +12,8 @@ import { PrismaClient } from "@prisma/client";
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? "postgresql://barberia:barberia@localhost:5433/barberia_test?schema=public";
 export const AGENT_KEY = "test-agent-key";
+export const JWT_SECRET = "clave-de-pruebas-para-firmar-los-jwt-de-sesion";
+export const SESSION_COOKIE = "barberia_session";
 const PORT = Number(process.env.TEST_PORT ?? 3999);
 export const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -41,7 +43,7 @@ export interface Fixtures {
 /** Vacía todas las tablas y carga los mismos datos en cada archivo de pruebas. */
 export async function resetDatabase(): Promise<Fixtures> {
   await db.$executeRawUnsafe(
-    'TRUNCATE "Cita", "Sesion", "BloqueoHorario", "HorarioBarbero", "Servicio", "Imagen", "Cliente", "Barbero" RESTART IDENTITY CASCADE',
+    'TRUNCATE "Cita", "BloqueoHorario", "HorarioBarbero", "Servicio", "Imagen", "Cliente", "Barbero" RESTART IDENTITY CASCADE',
   );
   const allWeek = Array.from({ length: 7 }, (_, day) => ({ diaSemana: day, horaInicio: "08:00", horaFin: "20:00" }));
   const admin = await db.barbero.create({
@@ -83,8 +85,11 @@ export async function resetDatabase(): Promise<Fixtures> {
 
 let server: ChildProcess | undefined;
 
-/** Arranca el back (el archivo de entrada sale de API_ENTRY, por defecto src/main.ts) y espera a que /salud responda. */
-export async function startApi(): Promise<void> {
+/**
+ * Arranca el back (el archivo de entrada sale de API_ENTRY, por defecto src/main.ts) y espera a que /salud responda.
+ * env cambia variables para una prueba, por ejemplo una sesión que vence en segundos.
+ */
+export async function startApi(env: Record<string, string> = {}): Promise<void> {
   const entry = process.env.API_ENTRY ?? "src/main.ts";
   server = spawn(process.execPath, ["--import", "tsx", entry], {
     env: {
@@ -95,6 +100,9 @@ export async function startApi(): Promise<void> {
       ZONA_DESFASE: "-05:00",
       INTERVALO_MIN: "30",
       DESCUENTO_REGISTRO_PCT: "10",
+      JWT_SECRET,
+      SESION_MINUTOS: "30",
+      ...env,
     },
     stdio: ["ignore", "ignore", "inherit"],
   });
@@ -127,15 +135,26 @@ export interface Reply<T = any> {
   data: T;
   error: ApiErrorBody;
   pagination?: { page: number; perPage: number; total: number };
+  /** Lo que mandó el back en Set-Cookie, una línea por cookie */
+  setCookies: string[];
+  /** El JWT que quedó en la cookie de sesión. Vacío si la borró, undefined si no la tocó */
+  sessionToken?: string;
+}
+
+/** Saca el valor de la cookie de sesión de los Set-Cookie */
+function sessionTokenFrom(setCookies: string[]): string | undefined {
+  const line = setCookies.find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+  return line === undefined ? undefined : decodeURIComponent(line.split(";")[0].slice(SESSION_COOKIE.length + 1));
 }
 
 export async function call<T = any>(
   method: string,
   path: string,
+  /** token es el JWT de la sesión, se manda como la cookie que mandaría el navegador */
   options: { body?: unknown; token?: string; agent?: boolean; raw?: { type: string; data: Buffer } } = {},
 ): Promise<Reply<T>> {
   const headers: Record<string, string> = {};
-  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  if (options.token) headers.Cookie = `${SESSION_COOKIE}=${options.token}`;
   if (options.agent) headers["x-api-key"] = AGENT_KEY;
   let body: BodyInit | undefined;
   if (options.raw) {
@@ -160,13 +179,16 @@ export async function call<T = any>(
     data: envelope?.data as T,
     error: envelope?.error as ApiErrorBody,
     pagination: envelope?.pagination,
+    setCookies: res.headers.getSetCookie(),
+    sessionToken: sessionTokenFrom(res.headers.getSetCookie()),
   };
 }
 
 export async function login(phone: string, password: string): Promise<string> {
   const res = await call("POST", "/api/cuenta/login", { body: { telefono: phone, clave: password } });
   if (res.status !== 200) throw new Error(`No pudo iniciar sesión ${phone}: ${JSON.stringify(res.body)}`);
-  return res.data.token;
+  if (!res.sessionToken) throw new Error(`El login de ${phone} no dejó la cookie de sesión`);
+  return res.sessionToken;
 }
 
 /** Fecha en Colombia dentro de N días, "YYYY-MM-DD". */

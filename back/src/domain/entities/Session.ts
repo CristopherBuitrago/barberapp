@@ -1,41 +1,27 @@
 import { Barber } from "./Barber.js";
 import { Client } from "./Client.js";
-import { Entity } from "./Entity.js";
 
 export type Role = "CLIENTE" | "BARBERO" | "ADMIN";
 
-export interface SessionData {
-  /** SHA-256 del token, el token como tal nunca se guarda */
-  tokenHash: string;
-  /** De quién es: un cliente o alguien del equipo, nunca los dos */
-  owner: Client | Barber;
-  expiresAt: Date;
+/** Lo que va firmado dentro del token: de quién es la sesión. */
+export interface SessionClaims {
+  ownerKind: "client" | "barber";
+  ownerId: number;
 }
 
-/** Sesión iniciada en la web. */
-export class Session extends Entity {
-  private readonly _tokenHash: string;
-  private readonly _owner: Client | Barber;
-  private _expiresAt: Date;
+/**
+ * La sesión de quien está usando la web. No se guarda en la base: viaja en un token
+ * firmado y en cada petición se vuelve a armar con el dueño traído de la base.
+ */
+export class Session {
+  constructor(
+    private readonly _owner: Client | Barber,
+    private readonly _expiresAt: Date,
+  ) {}
 
-  private constructor(data: SessionData, id?: number) {
-    super(id);
-    this._tokenHash = data.tokenHash;
-    this._owner = data.owner;
-    this._expiresAt = data.expiresAt;
-  }
-
-  static open(owner: Client | Barber, tokenHash: string, expiresAt: Date): Session {
-    return new Session({ owner, tokenHash, expiresAt });
-  }
-
-  /** Para armarla desde la base */
-  static restore(id: number, data: SessionData): Session {
-    return new Session(data, id);
-  }
-
-  get tokenHash(): string {
-    return this._tokenHash;
+  /** Lo que se firma en el token para esta persona */
+  static claimsOf(owner: Client | Barber): SessionClaims {
+    return { ownerKind: owner instanceof Client ? "client" : "barber", ownerId: owner.id };
   }
 
   get owner(): Client | Barber {
@@ -44,10 +30,6 @@ export class Session extends Entity {
 
   get expiresAt(): Date {
     return this._expiresAt;
-  }
-
-  set expiresAt(value: Date) {
-    this._expiresAt = value;
   }
 
   get role(): Role {
@@ -68,9 +50,8 @@ export class Session extends Entity {
     return this._owner instanceof Barber;
   }
 
-  /** Sirve si no ha vencido y, si es del equipo, el barbero sigue activo */
-  isValidAt(now: Date): boolean {
-    if (this._expiresAt <= now) return false;
+  /** A un barbero que desactivaron se le cae la sesión de una vez, aunque el token no haya vencido */
+  get ownerCanUseIt(): boolean {
     return this._owner instanceof Barber ? this._owner.active : true;
   }
 }

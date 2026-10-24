@@ -1,18 +1,22 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { authToken } from "@/shared/api";
+import { sessionEvents } from "@/shared/api";
 import { readStored, writeStored } from "@/shared/lib";
 import { getMe, logout } from "../api/sessionApi";
-import type { StoredSession, User } from "./types";
+import type { User } from "./types";
 
-const SESSION_KEY = "barberia.session";
+/**
+ * Aquí solo se recuerda quién es la persona para pintar la web (nombre, rol). El token de la
+ * sesión va en una cookie httpOnly que el navegador maneja solo y el front nunca ve.
+ */
+const USER_KEY = "barberia.user";
 
 interface SessionContext {
   user: User | null;
   isTeam: boolean;
   isAdmin: boolean;
-  start: (session: StoredSession) => void;
+  start: (user: User) => void;
   update: (user: User) => void;
-  /** Cierra la sesión en el back y en el navegador */
+  /** Cierra la sesión en el back (borra la cookie) y en el navegador */
   end: () => Promise<void>;
 }
 
@@ -24,38 +28,33 @@ export function onSessionEnd(callback: () => void) {
   onEndCallbacks.push(callback);
 }
 
-/** Sesión de la web: cliente, barbero o admin. El token se guarda en el navegador. */
+/** Sesión de la web: cliente, barbero o admin. */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState(readStored<StoredSession>(SESSION_KEY));
+  const [user, setUser] = useState(readStored<User>(USER_KEY));
 
-  function save(next: StoredSession | null) {
-    writeStored(SESSION_KEY, next);
-    setSession(next);
+  function save(next: User | null) {
+    writeStored(USER_KEY, next);
+    setUser(next);
   }
 
   useEffect(() => {
-    authToken.register({
-      read: () => readStored<StoredSession>(SESSION_KEY)?.token ?? null,
-      onExpired: () => save(null),
+    // Antes la sesión guardaba el token en el navegador. Se borra para no dejarlo ahí
+    writeStored("barberia.session", null);
+    // Si el back responde que no hay sesión (pasó media hora sin usar la web), se olvida a la persona
+    sessionEvents.onExpired(() => {
+      if (readStored<User>(USER_KEY)) save(null);
     });
-    // Al abrir la web se confirma que la sesión sigue viva y se traen los datos al día
-    if (readStored<StoredSession>(SESSION_KEY)) {
-      getMe()
-        .then((user) => {
-          const current = readStored<StoredSession>(SESSION_KEY);
-          if (current) save({ ...current, user });
-        })
-        .catch(() => {});
-    }
+    // Al abrir la web se confirma con el back que la cookie sigue viva y se traen los datos al día
+    if (readStored<User>(USER_KEY)) getMe().then(save).catch(() => {});
   }, []);
 
-  const role = session?.user.role;
+  const role = user?.role;
   const value: SessionContext = {
-    user: session?.user ?? null,
+    user,
     isTeam: role === "BARBERO" || role === "ADMIN",
     isAdmin: role === "ADMIN",
     start: save,
-    update: (user) => session && save({ ...session, user }),
+    update: save,
     end: async () => {
       await logout().catch(() => {});
       // En un equipo compartido, el siguiente no debe ver nada de esta cuenta

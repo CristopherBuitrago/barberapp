@@ -1,8 +1,9 @@
-import { toStoredSession, type SessionDto, type StoredSession } from "@/entities/session";
+import { toUser, type SessionDto, type User } from "@/entities/session";
 import { http } from "@/shared/api";
 
-export async function login(phone: string, password: string): Promise<StoredSession> {
-  return toStoredSession(await http.post<SessionDto>("/cuenta/login", { telefono: phone, clave: password }));
+/** El back deja la sesión en una cookie httpOnly, aquí solo vuelven los datos de la persona */
+export async function login(phone: string, password: string): Promise<User> {
+  return toUser((await http.post<SessionDto>("/cuenta/login", { telefono: phone, clave: password })).usuario);
 }
 
 /** Crea la cuenta de cliente. welcomeDiscountPct es el descuento para su próxima cita */
@@ -11,7 +12,7 @@ export async function register(data: {
   phone: string;
   password: string;
   birthDate?: string;
-}): Promise<{ session: StoredSession; welcomeDiscountPct: number }> {
+}): Promise<{ user: User; welcomeDiscountPct: number }> {
   const result = await http.post<SessionDto & { descuentoPct: number }>("/cuenta/registro", {
     nombre: data.name,
     telefono: data.phone,
@@ -19,5 +20,5 @@ export async function register(data: {
     fechaNacimiento: data.birthDate,
     aceptaDatos: true,
   });
-  return { session: toStoredSession(result), welcomeDiscountPct: result.descuentoPct };
+  return { user: toUser(result.usuario), welcomeDiscountPct: result.descuentoPct };
 }

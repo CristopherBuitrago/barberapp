@@ -9,9 +9,3 @@ export interface User {
   /** "YYYY-MM-DD", siempre null para el equipo */
   birthDate: string | null;
 }
-
-/** Lo que se guarda en el navegador */
-export interface StoredSession {
-  token: string;
-  user: User;
-}
