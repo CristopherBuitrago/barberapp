@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api, type Barbero, type HoraDisponible, type Servicio } from "../api";
+import { api, urlImagen, type Barbero, type HoraDisponible, type Servicio } from "../api";
 import { almacen } from "../almacen";
 import { esActiva, useCitaGuardada } from "../citaGuardada";
 import { useSesion } from "../sesion";
@@ -153,7 +153,7 @@ export function Reservar() {
               <Duracion minutos={servicio.duracionMin} />
             </div>
             {servicio.imagenUrl ? (
-              <img className="servicio-imagen" src={servicio.imagenUrl} alt={servicio.nombre} />
+              <img className="servicio-imagen" src={urlImagen(servicio.imagenUrl)!} alt={servicio.nombre} />
             ) : (
               <div className="servicio-imagen" />
             )}

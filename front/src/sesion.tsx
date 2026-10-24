@@ -5,6 +5,7 @@ import { almacen } from "./almacen";
 interface ContextoSesion {
   usuario: Usuario | null;
   esEquipo: boolean;
+  esAdmin: boolean;
   iniciar: (sesion: SesionGuardada) => void;
   actualizar: (usuario: Usuario) => void;
   cerrar: () => Promise<void>;
@@ -38,6 +39,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   const valor: ContextoSesion = {
     usuario: sesion?.usuario ?? null,
     esEquipo: sesion?.usuario.rol === "BARBERO" || sesion?.usuario.rol === "ADMIN",
+    esAdmin: sesion?.usuario.rol === "ADMIN",
     iniciar: guardar,
     actualizar: (usuario) => sesion && guardar({ ...sesion, usuario }),
     cerrar: async () => {

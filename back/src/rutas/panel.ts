@@ -1,7 +1,7 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.js";
-import { soloEquipo } from "../lib/sesion.js";
+import { sesionDe, soloAdmin, soloEquipo } from "../lib/sesion.js";
 import { ErrorNegocio } from "../lib/errores.js";
 import { aInstante, aIsoLocal } from "../lib/fechas.js";
 import { citasEnRango, crearCita } from "../servicios/citas.js";
@@ -74,3 +74,72 @@ rutasPanel.delete("/bloqueos/:id", async (req, res) => {
   });
   res.status(204).end();
 });
+
+// --- Catálogo de servicios (solo admin) ---
+
+const datosServicio = z.object({
+  nombre: z.string().trim().min(1).max(60),
+  descripcion: z.string().trim().max(300),
+  duracionMin: z.number().int().min(5).max(480),
+  precio: z.number().int().min(0),
+  imagenUrl: z.string().max(300).nullable(),
+  activo: z.boolean(),
+});
+
+const autoriaServicio = {
+  creadoPor: { select: { id: true, nombre: true } },
+  actualizadoPor: { select: { id: true, nombre: true } },
+};
+
+/** Id del barbero/admin con sesión (las rutas del panel siempre la tienen). */
+function quien(res: express.Response): number {
+  const sesion = sesionDe(res);
+  if (!sesion || sesion.rol === "CLIENTE") throw new ErrorNegocio(401, "Inicia sesión con una cuenta del equipo");
+  return sesion.barbero.id;
+}
+
+/** Todos los servicios, también los desactivados (la web pública solo ve los activos). */
+rutasPanel.get("/servicios", soloAdmin, async (_req, res) => {
+  res.json(await db.servicio.findMany({ include: autoriaServicio, orderBy: { id: "asc" } }));
+});
+
+rutasPanel.post("/servicios", soloAdmin, async (req, res) => {
+  const autor = quien(res);
+  const servicio = await db.servicio.create({
+    data: { ...datosServicio.parse(req.body), creadoPorId: autor, actualizadoPorId: autor },
+    include: autoriaServicio,
+  });
+  res.status(201).json(servicio);
+});
+
+/** No se borran: las citas pasadas los referencian. Para quitarlos de la web se desactivan. */
+rutasPanel.patch("/servicios/:id", soloAdmin, async (req, res) => {
+  const servicioId = id.parse(req.params.id);
+  const datos = datosServicio.partial().parse(req.body);
+  const existe = await db.servicio.findUnique({ where: { id: servicioId } });
+  if (!existe) throw new ErrorNegocio(404, "Servicio no encontrado");
+  res.json(
+    await db.servicio.update({
+      where: { id: servicioId },
+      data: { ...datos, actualizadoPorId: quien(res) },
+      include: autoriaServicio,
+    }),
+  );
+});
+
+const TIPOS_IMAGEN = ["image/jpeg", "image/png", "image/webp"];
+
+/** Sube una imagen (el cuerpo es el archivo tal cual, máximo 3 MB) y devuelve su URL. */
+rutasPanel.post(
+  "/imagenes",
+  soloAdmin,
+  express.raw({ type: TIPOS_IMAGEN, limit: "3mb" }),
+  async (req, res) => {
+    const tipo = req.header("content-type") ?? "";
+    if (!TIPOS_IMAGEN.includes(tipo) || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw new ErrorNegocio(400, "Sube una imagen JPG, PNG o WebP");
+    }
+    const imagen = await db.imagen.create({ data: { tipo, datos: new Uint8Array(req.body) } });
+    res.status(201).json({ url: `/api/imagenes/${imagen.id}` });
+  },
+);

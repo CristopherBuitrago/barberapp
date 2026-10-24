@@ -126,6 +126,16 @@ Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesi�
 | `GET` y `PATCH /api/cuenta/yo`, `GET /api/cuenta/yo/cita-activa` | con sesión (`Authorization: Bearer`) | datos del perfil y cita activa del cliente |
 | `/api/interno/*` | agente (`x-api-key`) | contacto por teléfono, agenda, bloqueos |
 | `/api/panel/*` | sesión de barbero o admin | calendario, estados, citas presenciales, bloqueos |
+| `GET`, `POST /api/panel/servicios`, `PATCH /api/panel/servicios/:id`, `POST /api/panel/imagenes` | solo admin | catálogo de servicios e imágenes (JPG, PNG o WebP, máx. 3 MB) |
+| `GET /api/imagenes/:id` | público | imagen subida desde el panel |
+
+## Servicios e imágenes
+
+El admin los administra en `/panel/servicios` (menú › *Administrar servicios*): nombre, descripción, duración, precio, imagen y si se ve en la web y en WhatsApp. Los servicios no se borran porque las citas pasadas los referencian; se ocultan. Las imágenes se guardan en la base (tabla `Imagen`), así que el respaldo de la base incluye todo.
+
+## Secretos
+
+Las claves (`DATABASE_URL`, `AGENTE_API_KEY`, `BACK_API_KEY`, `ANTHROPIC_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`) se leen primero de un archivo: `/run/secrets/<nombre en minúsculas>` (como los monta Docker) o la ruta en `<NOMBRE>_FILE`. Si no hay archivo, se usa la variable del `.env`, que queda solo para desarrollo.
 
 ## Pendiente (siguientes fases)
 

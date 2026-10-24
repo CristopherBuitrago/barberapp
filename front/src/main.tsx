@@ -9,6 +9,7 @@ import { Exito } from "./paginas/Exito";
 import { Perfil } from "./paginas/Perfil";
 import { Registro } from "./paginas/Registro";
 import { Panel } from "./panel/Panel";
+import { Servicios } from "./panel/Servicios";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/perfil/registro" element={<Registro />} />
           <Route path="/registro" element={<Navigate to="/perfil/registro" replace />} />
           <Route path="/panel" element={<Panel />} />
+          <Route path="/panel/servicios" element={<Servicios />} />
         </Routes>
       </BrowserRouter>
     </SesionProvider>

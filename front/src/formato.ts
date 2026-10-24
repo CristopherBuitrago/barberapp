@@ -75,6 +75,12 @@ export function fechaLarga(fechaOIso: string): string {
   return `${DIAS[diaSemana(f)]} ${Number(f.slice(8, 10))} de ${MESES[Number(f.slice(5, 7)) - 1]}`;
 }
 
+/** "23 oct 2026" de un instante en UTC (marcas de tiempo de la base), en hora de Colombia. */
+export function fechaCorta(isoUtc: string): string {
+  const f = new Date(new Date(isoUtc).getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return `${Number(f.slice(8, 10))} ${MESES[Number(f.slice(5, 7)) - 1].slice(0, 3)} ${f.slice(0, 4)}`;
+}
+
 /** Minutos desde medianoche local de un ISO con desfase. */
 export function minutosDelDia(iso: string): number {
   return Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16));

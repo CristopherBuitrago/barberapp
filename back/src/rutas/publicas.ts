@@ -15,6 +15,14 @@ rutasPublicas.get("/servicios", async (_req, res) => {
   res.json(await db.servicio.findMany({ where: { activo: true }, orderBy: { id: "asc" } }));
 });
 
+/** Imagen subida desde el panel. Nunca cambia (una nueva imagen es otro id), así que se cachea fuerte. */
+rutasPublicas.get("/imagenes/:id", async (req, res) => {
+  const imagen = await db.imagen.findUnique({ where: { id: id.parse(req.params.id) } });
+  if (!imagen) throw new ErrorNegocio(404, "Imagen no encontrada");
+  res.set("Cache-Control", "public, max-age=31536000, immutable");
+  res.type(imagen.tipo).send(Buffer.from(imagen.datos));
+});
+
 rutasPublicas.get("/barberos", async (_req, res) => {
   res.json(
     await db.barbero.findMany({

@@ -14,6 +14,22 @@ export interface Servicio {
   duracionMin: number;
   precio: number;
   imagenUrl: string | null;
+  activo: boolean;
+}
+
+export type DatosServicio = Omit<Servicio, "id">;
+
+/** Servicio como lo ve el admin: con quién lo creó y quién lo cambió por última vez. */
+export interface ServicioAdmin extends Servicio {
+  creadoPor: Barbero | null;
+  actualizadoPor: Barbero | null;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+/** Las imágenes subidas vienen como "/api/imagenes/3": se resuelven contra el back. */
+export function urlImagen(url: string | null): string | null {
+  return url?.startsWith("/api/") ? `${BASE}${url}` : url;
 }
 
 export interface Barbero {
@@ -124,5 +140,20 @@ export function apiPanel() {
     crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/panel/citas", cita),
     bloquear: (b: { barberoId: number; inicio: string; fin: string; motivo: string }) => pedir("POST", "/panel/bloqueos", b),
     borrarBloqueo: (id: number) => pedir("DELETE", `/panel/bloqueos/${id}`),
+    servicios: () => pedir<ServicioAdmin[]>("GET", "/panel/servicios"),
+    crearServicio: (s: DatosServicio) => pedir<ServicioAdmin>("POST", "/panel/servicios", s),
+    editarServicio: (id: number, s: Partial<DatosServicio>) =>
+      pedir<ServicioAdmin>("PATCH", `/panel/servicios/${id}`, s),
+    subirImagen: async (archivo: File) => {
+      const token = almacen.sesion<SesionGuardada>()?.token;
+      const res = await fetch(`${BASE}/api/panel/imagenes`, {
+        method: "POST",
+        headers: { "Content-Type": archivo.type, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: archivo,
+      });
+      const datos = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(datos.error ?? (res.status === 413 ? "La imagen pesa más de 3 MB" : `Error ${res.status}`));
+      return datos.url as string;
+    },
   };
 }

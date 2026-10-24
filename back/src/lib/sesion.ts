@@ -67,6 +67,15 @@ export const soloEquipo: RequestHandler = (_req, res, next) => {
   next();
 };
 
+/** Solo el admin (catálogo de servicios). Va después de soloEquipo. */
+export const soloAdmin: RequestHandler = (_req, res, next) => {
+  if (sesionDe(res)?.rol !== "ADMIN") {
+    res.status(403).json({ error: "Solo el administrador puede hacer esto" });
+    return;
+  }
+  next();
+};
+
 /** Datos de la cuenta que ve el front. */
 export function presentarUsuario(sesion: SesionActiva) {
   if (sesion.rol === "CLIENTE") {

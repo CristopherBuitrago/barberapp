@@ -35,7 +35,7 @@ export function BotonPerfil({ enPerfil = false }: { enPerfil?: boolean }) {
 /** Botón de menú (esquina superior izquierda) con las secciones según quién inició sesión. */
 export function BotonMenu() {
   const [abierto, setAbierto] = useState(false);
-  const { usuario, esEquipo, cerrar } = useSesion();
+  const { usuario, esEquipo, esAdmin, cerrar } = useSesion();
   const { pathname } = useLocation();
   const navegar = useNavigate();
 
@@ -62,7 +62,9 @@ export function BotonMenu() {
               </button>
             </div>
             {esEquipo && <Link to="/panel">Panel</Link>}
-            <Link to="/">Servicios</Link>
+            {/* El admin administra los servicios; los demás ven el catálogo de la web. */}
+            <Link to={esAdmin ? "/panel/servicios" : "/"}>Servicios</Link>
+            {esEquipo && <Link to="/">Ver la web</Link>}
             {!esEquipo && <Link to="/reserva-confirmada">Mi cita</Link>}
             <Link to="/perfil" state={{ desde: pathname }}>{usuario ? "Mi perfil" : "Iniciar sesión"}</Link>
             {!usuario && <Link to="/perfil/registro" state={{ desde: pathname }}>Crear cuenta</Link>}

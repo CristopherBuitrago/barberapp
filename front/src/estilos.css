@@ -66,7 +66,7 @@ a { color: var(--azul); }
 .acciones.envolver { flex-wrap: wrap; justify-content: flex-start; }
 
 .campo { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: var(--suave); margin-top: 12px; flex: 1; }
-.campo input, .campo select, select {
+.campo input, .campo select, .campo textarea, select {
   border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; font-family: inherit; color: var(--texto); background: #fff;
 }
 .casilla { display: flex; gap: 10px; align-items: flex-start; font-size: 0.8rem; color: var(--suave); margin-top: 14px; line-height: 1.4; }
@@ -268,7 +268,8 @@ a { color: var(--azul); }
 .boton-icono:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .boton-icono.oscuro img { filter: invert(1); }
 
-.menu-fondo { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 20; }
+/* pointer-events: el menú se abre dentro de .cabecera-botones, que deja pasar los clics al logo. */
+.menu-fondo { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 20; pointer-events: auto; }
 .menu {
   position: absolute; top: 0; bottom: 0; left: 0; width: min(85vw, calc(240px * var(--db-escala)));
   background: #fff; box-shadow: 0 0 12px rgb(0 0 0 / 35%); display: flex; flex-direction: column;
@@ -326,6 +327,25 @@ a { color: var(--azul); }
 .modal-fondo { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); display: grid; place-items: center; padding: 16px; z-index: 10; }
 .modal { width: 100%; max-width: 420px; max-height: 90vh; overflow: auto; }
 .modal .boton.bloque { margin-top: 18px; }
+.modal textarea { resize: vertical; }
+.vista-imagen { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; background: #f4f4f5; }
+.campo label.boton { text-align: center; }
+
+/* Tablas del panel (servicios) */
+.tabla-contenedor { margin: 0 16px 16px; overflow-x: auto; background: var(--tarjeta); border-radius: var(--radio); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabla th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--suave); text-transform: uppercase; letter-spacing: 0.03em; padding: 12px 14px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+.tabla td { padding: 10px 14px; border-bottom: 1px solid #f0f0f2; vertical-align: middle; }
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla tbody tr:hover { background: #fafafa; }
+.tabla tr.inactivo td:not(:last-child) { opacity: 0.55; }
+.tabla-miniatura { display: grid; place-items: center; width: 56px; height: 40px; object-fit: cover; border-radius: 6px; background: #f4f4f5; color: var(--suave); }
+.tabla-descripcion { display: block; color: var(--suave); font-size: 0.78rem; max-width: 280px; }
+.tabla-opciones { display: flex; gap: 6px; }
+.tabla-opciones .boton { padding: 5px 12px; font-size: 0.82rem; }
+.estado { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.estado.visible { background: #dcfce7; color: #15803d; }
+.estado.oculto { background: #f4f4f5; color: var(--suave); }
 
 @media (max-width: 760px) {
   .panel-controles { flex-direction: column; }
