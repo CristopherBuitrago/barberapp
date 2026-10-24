@@ -341,7 +341,7 @@ const paths = {
   // Cuentas
   "/api/cuenta/login": {
     post: {
-      tags: ["Cuenta"],
+      tags: ["Autenticación"],
       summary: "Iniciar sesión con teléfono y contraseña",
       description: "Si el teléfono es de alguien del equipo entra como BARBERO o ADMIN, si no como CLIENTE.",
       requestBody: jsonBody(loginBody),
@@ -353,7 +353,7 @@ const paths = {
   },
   "/api/cuenta/registro": {
     post: {
-      tags: ["Cuenta"],
+      tags: ["Autenticación"],
       summary: "Crear cuenta de cliente",
       description: "Si ya había reservado sin cuenta, la cuenta queda en la misma ficha. descuentoPct es el descuento de bienvenida para su próxima cita.",
       requestBody: jsonBody(registerBody),
@@ -372,13 +372,13 @@ const paths = {
   },
   "/api/cuenta/yo": {
     get: {
-      tags: ["Cuenta"],
+      tags: ["Perfil"],
       summary: "Datos de quien tiene la sesión",
       security: [{ bearerAuth: [] }],
       responses: { ...ok(ref("Usuario"), "Perfil"), ...errors({ 401: [authRequired] }) },
     },
     patch: {
-      tags: ["Cuenta"],
+      tags: ["Perfil"],
       summary: "Editar el perfil",
       description: "El cliente edita nombre y fechaNacimiento (null la borra). El equipo solo el nombre. El teléfono no se cambia.",
       security: [{ bearerAuth: [] }],
@@ -388,7 +388,7 @@ const paths = {
   },
   "/api/cuenta/logout": {
     post: {
-      tags: ["Cuenta"],
+      tags: ["Autenticación"],
       summary: "Cerrar sesión",
       security: [{ bearerAuth: [] }],
       responses: { ...empty("Sesión cerrada, el token deja de servir"), ...errors({ 401: [authRequired] }) },
@@ -396,7 +396,7 @@ const paths = {
   },
   "/api/cuenta/yo/cita-activa": {
     get: {
-      tags: ["Cuenta"],
+      tags: ["Perfil"],
       summary: "Próxima cita del cliente con sesión",
       description: "También las que agendó por WhatsApp. Responde null si no tiene, o si la sesión es del equipo.",
       security: [{ bearerAuth: [] }],
@@ -603,10 +603,11 @@ export const openApiDocument = {
   },
   servers: [{ url: "/", description: "Este mismo servidor" }],
   tags: [
+    { name: "Autenticación", description: "Iniciar sesión, crear cuenta y cerrar sesión. El token que devuelve el login va en Authorize" },
+    { name: "Perfil", description: "Con sesión (Bearer)" },
     { name: "Catálogo" },
     { name: "Disponibilidad" },
     { name: "Citas", description: "Lo que hace el cliente con su cita" },
-    { name: "Cuenta" },
     { name: "Panel", description: "Con sesión de un barbero o del admin" },
     { name: "Servicios (admin)", description: "Solo el admin" },
     { name: "Agente de WhatsApp", description: "Solo con la clave del agente (x-api-key)" },
