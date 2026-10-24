@@ -165,6 +165,15 @@ Las pruebas de la API borran y vuelven a cargar `barberia_test` cada vez, nunca 
 
 ## API del back
 
+### Documentación (Swagger)
+
+Con el back corriendo:
+
+- **http://localhost:3000/api/docs**: pantalla de Swagger con cada ruta, lo que recibe, lo que responde y sus códigos de error. Se puede probar cada ruta desde ahí. Para las del panel, inicia sesión con `POST /api/cuenta/login`, copia el `token` y pégalo en **Authorize** (`bearerAuth`). Para las del agente, pon la clave en `agentKey`.
+- **http://localhost:3000/api/docs/openapi.json**: el documento OpenAPI 3.1, para importarlo en Postman o Insomnia.
+
+El documento está en `back/src/presentation/http/docs/openapi.ts`. Lo que se manda sale de los mismos esquemas zod que validan las peticiones. Lo que se responde está escrito ahí, así que si cambias un presenter hay que cambiarlo también en ese archivo. La prueba `tests/api/docs.test.ts` avisa si se documenta una ruta que no existe o una respuesta sin el sobre.
+
 ### Formato de las respuestas
 
 Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés y los datos de adentro en español.

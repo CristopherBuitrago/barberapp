@@ -1,6 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import type { AuthenticateSession } from "../../application/use-cases/accounts/AuthenticateSession.js";
+import { docsRoutes } from "./docs/swagger.js";
 import { readSession } from "./middlewares/auth.js";
 import { errorHandler, routeNotFound } from "./middlewares/errorHandler.js";
 import { sendData } from "./responses.js";
@@ -23,6 +24,8 @@ export function createApp(deps: HttpDependencies): Express {
   app.get("/salud", (_req, res) => {
     sendData(res, { ok: true });
   });
+  // La documentación es lo único que no responde con el sobre: es una página y su JSON de OpenAPI
+  app.use("/api/docs", docsRoutes());
   app.use("/api/interno", agentRoutes(deps.controllers, deps.agentApiKey));
   app.use("/api/panel", panelRoutes(deps.controllers));
   app.use("/api/cuenta", accountRoutes(deps.controllers));

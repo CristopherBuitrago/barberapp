@@ -54,6 +54,8 @@ export const clientProfileBody = z.object({ nombre: name, fechaNacimiento: date.
 export const teamProfileBody = z.object({ nombre: name });
 
 export const dateRangeQuery = z.object({ desde: date, hasta: date, barberoId: id.optional() });
+/** Los bloqueos del panel se traen de todos los barberos, solo con el rango de fechas */
+export const timeBlockRangeQuery = dateRangeQuery.pick({ desde: true, hasta: true });
 export const agendaQuery = z.object({ fecha: date, barberoId: id.optional() });
 export const statusBody = z.object({
   estado: z.enum([
