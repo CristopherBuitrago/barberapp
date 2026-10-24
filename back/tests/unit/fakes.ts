@@ -23,6 +23,7 @@ import type { ImageRepository } from "../../src/domain/repositories/ImageReposit
 import type { ServiceRepository } from "../../src/domain/repositories/ServiceRepository.js";
 import type { SessionRepository } from "../../src/domain/repositories/SessionRepository.js";
 import type { TimeBlockRepository } from "../../src/domain/repositories/TimeBlockRepository.js";
+import { paginate, type PageRequest } from "../../src/domain/repositories/Pagination.js";
 import { overlaps } from "../../src/domain/value-objects/TimeZone.js";
 
 // --- Copias de cada entidad con un id ---
@@ -176,6 +177,9 @@ export class MemoryBarberRepository implements BarberRepository {
   async findAll() {
     return this.all();
   }
+  async listAll(page: PageRequest) {
+    return paginate(this.all(), page);
+  }
   async findById(id: number) {
     return this.all().find((b) => b.id === id) ?? null;
   }
@@ -209,14 +213,14 @@ export class MemoryServiceRepository implements ServiceRepository {
   private all() {
     return [...this.store.services.values()].map((s) => copyService(s, s.id));
   }
-  async findActive() {
-    return this.all().filter((s) => s.active);
+  async findActive(page: PageRequest) {
+    return paginate(this.all().filter((s) => s.active), page);
   }
   async findActiveById(id: number) {
     return this.all().find((s) => s.id === id && s.active) ?? null;
   }
-  async findAll() {
-    return this.all();
+  async findAll(page: PageRequest) {
+    return paginate(this.all(), page);
   }
   async findById(id: number) {
     return this.all().find((s) => s.id === id) ?? null;
@@ -245,8 +249,15 @@ export class MemoryAppointmentRepository implements AppointmentRepository {
   async findActiveByClient(client: Client, now: Date) {
     return this.all().find((a) => a.client.equals(client) && a.isActiveAt(now)) ?? null;
   }
-  async findStartingBetween(from: Date, to: Date, barberId?: number) {
-    return this.all().filter((a) => a.start >= from && a.start < to && (!barberId || a.barber.id === barberId));
+  async findStartingBetween(from: Date, to: Date, filter: { barberId?: number; excludeCancelled?: boolean }, page: PageRequest) {
+    const found = this.all().filter(
+      (a) =>
+        a.start >= from &&
+        a.start < to &&
+        (!filter.barberId || a.barber.id === filter.barberId) &&
+        (!filter.excludeCancelled || a.status !== "CANCELADA"),
+    );
+    return paginate(found, page);
   }
   async findScheduledOverlapping(from: Date, to: Date, barberIds: number[], excludeId?: number) {
     return this.all().filter(
@@ -265,6 +276,9 @@ export class MemoryTimeBlockRepository implements TimeBlockRepository {
   }
   async findOverlapping(from: Date, to: Date, barberIds?: number[]) {
     return this.all().filter((t) => (!barberIds || barberIds.includes(t.barber.id)) && overlaps(t.start, t.end, from, to));
+  }
+  async listOverlapping(from: Date, to: Date, page: PageRequest) {
+    return paginate(await this.findOverlapping(from, to), page);
   }
   async save(block: TimeBlock) {
     return persist(this.store.timeBlocks, block, copyTimeBlock, () => this.store.nextId());

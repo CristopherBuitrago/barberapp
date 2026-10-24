@@ -1,3 +1,4 @@
+import { ErrorCode } from "../errors/ErrorCode.js";
 import { ensure } from "../errors/DomainError.js";
 import { Entity } from "./Entity.js";
 
@@ -22,6 +23,7 @@ export class Image extends Entity {
     ensure(
       (IMAGE_TYPES as readonly string[]).includes(type) && !!data && data.length > 0,
       "Sube una imagen JPG, PNG o WebP",
+      ErrorCode.InvalidImage,
     );
     return new Image({ type, data: data!, createdAt: now });
   }

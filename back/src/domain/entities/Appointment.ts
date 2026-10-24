@@ -1,3 +1,4 @@
+import { ErrorCode } from "../errors/ErrorCode.js";
 import { ConflictError, ensure } from "../errors/DomainError.js";
 import { addMinutes } from "../value-objects/TimeZone.js";
 import type { Barber } from "./Barber.js";
@@ -54,7 +55,7 @@ export class Appointment extends Entity {
 
   private constructor(data: AppointmentData, id?: number) {
     super(id);
-    ensure(data.start < data.end, "La cita tiene que empezar antes de terminar");
+    ensure(data.start < data.end, "La cita tiene que empezar antes de terminar", ErrorCode.InvalidTimeRange);
     ensure(data.discountPct >= 0 && data.discountPct <= 100, "El descuento va de 0 a 100");
     this._client = data.client;
     this._barber = data.barber;
@@ -178,13 +179,13 @@ export class Appointment extends Entity {
 
   /** El cliente cancela. Solo se puede si sigue agendada */
   cancel(): void {
-    if (!this.isScheduled) throw new ConflictError("La cita ya no está activa");
+    if (!this.isScheduled) throw new ConflictError("La cita ya no está activa", ErrorCode.AppointmentNotActive);
     this._status = AppointmentStatus.Cancelled;
   }
 
   /** Cambia la hora con el mismo barbero y servicio. El fin se corre igual */
   reschedule(start: Date): void {
-    if (!this.isScheduled) throw new ConflictError("La cita ya no está activa");
+    if (!this.isScheduled) throw new ConflictError("La cita ya no está activa", ErrorCode.AppointmentNotActive);
     this._start = start;
     this._end = addMinutes(start, this._service.durationMin);
   }

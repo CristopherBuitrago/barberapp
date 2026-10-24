@@ -2,7 +2,8 @@ import cors from "cors";
 import express, { type Express } from "express";
 import type { AuthenticateSession } from "../../application/use-cases/accounts/AuthenticateSession.js";
 import { readSession } from "./middlewares/auth.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
+import { errorHandler, routeNotFound } from "./middlewares/errorHandler.js";
+import { sendData } from "./responses.js";
 import { accountRoutes, agentRoutes, panelRoutes, publicRoutes, type Controllers } from "./routes/index.js";
 
 export interface HttpDependencies {
@@ -20,12 +21,13 @@ export function createApp(deps: HttpDependencies): Express {
   app.use(readSession(deps.authenticateSession));
 
   app.get("/salud", (_req, res) => {
-    res.json({ ok: true });
+    sendData(res, { ok: true });
   });
   app.use("/api/interno", agentRoutes(deps.controllers, deps.agentApiKey));
   app.use("/api/panel", panelRoutes(deps.controllers));
   app.use("/api/cuenta", accountRoutes(deps.controllers));
   app.use("/api", publicRoutes(deps.controllers));
+  app.use(routeNotFound);
   app.use(errorHandler);
   return app;
 }

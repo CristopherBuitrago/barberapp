@@ -46,10 +46,14 @@ export interface NuevaCita {
   cliente: { nombre: string; telefono: string; aceptaDatos: boolean };
 }
 
-/** Error del back con mensaje legible (ej. "Esa hora ya no está disponible"). */
+/**
+ * Error del back. El código es fijo (por ejemplo SLOT_TAKEN) y el mensaje se le puede
+ * mostrar al cliente tal cual (por ejemplo "Esa hora ya no está disponible").
+ */
 export class ErrorBack extends Error {
   constructor(
     public readonly status: number,
+    public readonly codigo: string,
     mensaje: string,
   ) {
     super(mensaje);

@@ -1,4 +1,5 @@
 import type { Barber } from "../entities/Barber.js";
+import type { Page, PageRequest } from "./Pagination.js";
 
 /** Los barberos siempre vienen con sus jornadas. */
 export interface BarberRepository {
@@ -6,6 +7,8 @@ export interface BarberRepository {
   findActive(barberId?: number): Promise<Barber[]>;
   /** Todos, también los inactivos */
   findAll(): Promise<Barber[]>;
+  /** Lo mismo pero por páginas, para el panel */
+  listAll(page: PageRequest): Promise<Page<Barber>>;
   findById(id: number): Promise<Barber | null>;
   findActiveByPhone(phone: string): Promise<Barber | null>;
   /** Cualquiera con ese teléfono, esté activo o no */

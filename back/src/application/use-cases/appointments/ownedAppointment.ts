@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import type { Appointment } from "../../../domain/entities/Appointment.js";
 import { NotFoundError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
@@ -14,7 +15,7 @@ export async function findOwnedAppointment(
 ): Promise<Appointment> {
   const appointment = await appointments.findById(appointmentId);
   if (!appointment || !appointment.belongsToPhone(normalizePhone(phone))) {
-    throw new NotFoundError("Cita no encontrada");
+    throw new NotFoundError("Cita no encontrada", ErrorCode.AppointmentNotFound);
   }
   return appointment;
 }

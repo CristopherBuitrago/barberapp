@@ -1,7 +1,8 @@
 import type { RequestHandler } from "express";
 import type { GetAvailability } from "../../../application/use-cases/availability/GetAvailability.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
-import { availabilityQuery } from "../validators/schemas.js";
+import { sendPage } from "../responses.js";
+import { availabilityQuery, pageQuery } from "../validators/schemas.js";
 
 export class AvailabilityController {
   constructor(
@@ -11,7 +12,8 @@ export class AvailabilityController {
 
   freeSlots: RequestHandler = async (req, res) => {
     const q = availabilityQuery.parse(req.query);
-    const slots = await this.getAvailability.execute({ serviceId: q.servicioId, date: q.fecha, barberId: q.barberoId });
-    res.json(slots.map((s) => this.presenter.slot(s)));
+    const page = pageQuery.parse(req.query);
+    const slots = await this.getAvailability.execute({ serviceId: q.servicioId, date: q.fecha, barberId: q.barberoId, page });
+    sendPage(res, slots, page, (s) => this.presenter.slot(s));
   };
 }

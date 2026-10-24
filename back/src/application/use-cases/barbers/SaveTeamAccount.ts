@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import type { Barber } from "../../../domain/entities/Barber.js";
 import { NotFoundError, RuleViolationError } from "../../../domain/errors/DomainError.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
@@ -25,12 +26,12 @@ export class SaveTeamAccount {
     isAdmin: boolean;
   }): Promise<{ barber: Barber; alsoClientAccount: boolean }> {
     if (input.password.length < MIN_PASSWORD_LENGTH) {
-      throw new RuleViolationError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+      throw new RuleViolationError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`, ErrorCode.PasswordTooShort);
     }
     const barber = await this.barbers.findByName(input.name);
     if (!barber) {
       const names = (await this.barbers.findAll()).map((b) => b.name);
-      throw new NotFoundError(`No hay un barbero llamado "${input.name}". Barberos: ${names.join(", ") || "(ninguno)"}`);
+      throw new NotFoundError(`No hay un barbero llamado "${input.name}". Barberos: ${names.join(", ") || "(ninguno)"}`, ErrorCode.BarberNotFound);
     }
     // Si ese teléfono también tiene cuenta de cliente, con él se va a entrar al panel
     const client = await this.clients.findByPhone(normalizePhone(input.phone));

@@ -92,11 +92,8 @@ export class ApiPresenter {
       inicio: this.timeZone.toLocalIso(block.start),
       fin: this.timeZone.toLocalIso(block.end),
       motivo: block.reason,
+      barbero: this.barber(block.barber),
     };
-  }
-
-  timeBlockWithBarber(block: TimeBlock) {
-    return { ...this.timeBlock(block), barbero: this.barber(block.barber) };
   }
 
   profile(profile: Profile) {

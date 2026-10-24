@@ -9,6 +9,7 @@ import type { ServiceAdminController } from "../controllers/ServiceAdminControll
 import type { TeamController } from "../controllers/TeamController.js";
 import type { TimeBlockController } from "../controllers/TimeBlockController.js";
 import { requireAdmin, requireAgent, requireSession, requireTeam } from "../middlewares/auth.js";
+import { sendData } from "../responses.js";
 
 export interface Controllers {
   catalog: CatalogController;
@@ -61,7 +62,7 @@ export function panelRoutes(c: Controllers): Router {
   const router = Router();
   router.use(requireTeam);
   router.get("/verificar", (_req, res) => {
-    res.json({ ok: true });
+    sendData(res, { ok: true });
   });
   router.get("/citas", c.appointments.inRange);
   router.post("/citas", c.appointments.bookFromPanel);

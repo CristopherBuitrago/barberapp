@@ -114,9 +114,19 @@ export async function stopApi(): Promise<void> {
   await db.$disconnect();
 }
 
+export interface ApiErrorBody {
+  code: string;
+  message: string;
+  details: unknown;
+}
+
+/** La respuesta tal cual (body) y sus partes del sobre ya separadas */
 export interface Reply<T = any> {
   status: number;
-  body: T;
+  body: any;
+  data: T;
+  error: ApiErrorBody;
+  pagination?: { page: number; perPage: number; total: number };
 }
 
 export async function call<T = any>(
@@ -143,13 +153,20 @@ export async function call<T = any>(
   } catch {
     // Vino una imagen o texto plano
   }
-  return { status: res.status, body: parsed as T };
+  const envelope = parsed as { data?: T; error?: ApiErrorBody; pagination?: Reply["pagination"] };
+  return {
+    status: res.status,
+    body: parsed,
+    data: envelope?.data as T,
+    error: envelope?.error as ApiErrorBody,
+    pagination: envelope?.pagination,
+  };
 }
 
 export async function login(phone: string, password: string): Promise<string> {
   const res = await call("POST", "/api/cuenta/login", { body: { telefono: phone, clave: password } });
-  if (res.status !== 200) throw new Error(`Login failed for ${phone}: ${JSON.stringify(res.body)}`);
-  return res.body.token;
+  if (res.status !== 200) throw new Error(`No pudo iniciar sesión ${phone}: ${JSON.stringify(res.body)}`);
+  return res.data.token;
 }
 
 /** Fecha en Colombia dentro de N días, "YYYY-MM-DD". */

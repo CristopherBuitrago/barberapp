@@ -1,3 +1,4 @@
+import { ErrorCode } from "../errors/ErrorCode.js";
 import { ensure } from "../errors/DomainError.js";
 import type { Barber } from "./Barber.js";
 import { Entity } from "./Entity.js";
@@ -63,7 +64,7 @@ export class TimeBlock extends Entity {
 
   /** Inicio y fin juntos, porque el fin tiene que ir después del inicio */
   setPeriod(start: Date, end: Date): void {
-    ensure(end > start, "El fin debe ser después del inicio");
+    ensure(end > start, "El fin debe ser después del inicio", ErrorCode.InvalidTimeRange);
     this._start = start;
     this._end = end;
   }

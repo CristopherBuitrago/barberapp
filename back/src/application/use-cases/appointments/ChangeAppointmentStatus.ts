@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import type { Appointment, AppointmentStatus } from "../../../domain/entities/Appointment.js";
 import { NotFoundError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
@@ -8,7 +9,7 @@ export class ChangeAppointmentStatus {
 
   async execute(input: { appointmentId: number; status: AppointmentStatus }): Promise<Appointment> {
     const appointment = await this.appointments.findById(input.appointmentId);
-    if (!appointment) throw new NotFoundError("Cita no encontrada");
+    if (!appointment) throw new NotFoundError("Cita no encontrada", ErrorCode.AppointmentNotFound);
     appointment.status = input.status;
     return this.appointments.save(appointment);
   }

@@ -1,4 +1,5 @@
 import type { Barber } from "../../../domain/entities/Barber.js";
+import { offsetOf, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { Db } from "./client.js";
 import { barberInclude, toBarber } from "./mappers.js";
@@ -18,6 +19,14 @@ export class PrismaBarberRepository implements BarberRepository {
   async findAll(): Promise<Barber[]> {
     const rows = await this.db.barbero.findMany({ include: barberInclude, orderBy: { id: "asc" } });
     return rows.map(toBarber);
+  }
+
+  async listAll(page: PageRequest): Promise<Page<Barber>> {
+    const [rows, total] = await Promise.all([
+      this.db.barbero.findMany({ include: barberInclude, orderBy: { id: "asc" }, skip: offsetOf(page), take: page.perPage }),
+      this.db.barbero.count(),
+    ]);
+    return { items: rows.map(toBarber), total };
   }
 
   async findById(id: number): Promise<Barber | null> {

@@ -10,11 +10,14 @@ import type { Service } from "../../src/domain/entities/Service.js";
 import { TimeBlock } from "../../src/domain/entities/TimeBlock.js";
 import { ConflictError, NotFoundError, RuleViolationError } from "../../src/domain/errors/DomainError.js";
 import { TimeZone } from "../../src/domain/value-objects/TimeZone.js";
+import { ErrorCode } from "../../src/domain/errors/ErrorCode.js";
 import { FixedClock, memoryRepositories } from "./fakes.js";
 
 const tz = new TimeZone("-05:00");
 const DAY = "2026-10-26";
 const at = (time: string) => tz.toInstant(DAY, time);
+/** Una página que alcanza para todo */
+const ALL = { page: 1, perPage: 100 };
 
 let repos: ReturnType<typeof memoryRepositories>;
 let clock: FixedClock;
@@ -89,7 +92,7 @@ describe("agendar cita", () => {
     await book();
     await assert.rejects(
       book({ client: { name: "Pedro", phone: "3105550000", acceptsDataPolicy: true } }),
-      new ConflictError("Esa hora ya no está disponible con ese barbero"),
+      new ConflictError("Esa hora ya no está disponible con ese barbero", ErrorCode.SlotTaken),
     );
   });
 
@@ -105,7 +108,7 @@ describe("agendar cita", () => {
     assert.ok(second.barber.equals(andres));
     await assert.rejects(
       book({ barberId: undefined, client: { name: "Ana", phone: "3102220000", acceptsDataPolicy: true } }),
-      new ConflictError("Esa hora ya no está disponible"),
+      new ConflictError("Esa hora ya no está disponible", ErrorCode.SlotTaken),
     );
   });
 
@@ -163,20 +166,31 @@ describe("disponibilidad", () => {
 
   it("no ofrece horas dentro de los próximos 15 minutos", async () => {
     clock.current = at("09:50");
-    const slots = await availability().execute({ serviceId: haircut.id, date: DAY, barberId: diego.id });
-    assert.equal(tz.toLocalIso(slots[0].start).slice(11, 16), "10:30");
+    const { items } = await availability().execute({ serviceId: haircut.id, date: DAY, barberId: diego.id, page: ALL });
+    assert.equal(tz.toLocalIso(items[0].start).slice(11, 16), "10:30");
   });
 
   it("una cita agendada le quita esa hora solo al barbero que la tiene", async () => {
     await book();
-    const slots = await availability().execute({ serviceId: haircut.id, date: DAY });
-    const tenAm = slots.find((s) => s.start.getTime() === at("10:00").getTime());
+    const { items } = await availability().execute({ serviceId: haircut.id, date: DAY, page: ALL });
+    const tenAm = items.find((s) => s.start.getTime() === at("10:00").getTime());
     assert.deepEqual(tenAm?.barbers.map((b) => b.name), ["Andrés"]);
   });
 
   it("los barberos inactivos no aparecen", async () => {
     repos.store.barbers.get(andres.id)!.active = false;
-    const slots = await availability().execute({ serviceId: haircut.id, date: DAY });
-    assert.ok(slots.every((s) => s.barbers.length === 1 && s.barbers[0].equals(diego)));
+    const { items } = await availability().execute({ serviceId: haircut.id, date: DAY, page: ALL });
+    assert.ok(items.every((s) => s.barbers.length === 1 && s.barbers[0].equals(diego)));
+  });
+
+  it("devuelve las horas por páginas y dice cuántas hay en total", async () => {
+    // De 09:00 a 17:30 cada media hora son 18 horas
+    const first = await availability().execute({ serviceId: haircut.id, date: DAY, page: { page: 1, perPage: 5 } });
+    const last = await availability().execute({ serviceId: haircut.id, date: DAY, page: { page: 4, perPage: 5 } });
+    assert.equal(first.total, 18);
+    assert.equal(first.items.length, 5);
+    assert.equal(tz.toLocalIso(first.items[0].start).slice(11, 16), "09:00");
+    assert.equal(last.items.length, 3);
+    assert.equal(tz.toLocalIso(last.items[2].start).slice(11, 16), "17:30");
   });
 });

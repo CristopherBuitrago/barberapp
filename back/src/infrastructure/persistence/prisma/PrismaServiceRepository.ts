@@ -1,4 +1,5 @@
 import type { Service } from "../../../domain/entities/Service.js";
+import { offsetOf, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { ServiceRepository } from "../../../domain/repositories/ServiceRepository.js";
 import type { Db } from "./client.js";
 import { serviceInclude, toService } from "./mappers.js";
@@ -6,9 +7,8 @@ import { serviceInclude, toService } from "./mappers.js";
 export class PrismaServiceRepository implements ServiceRepository {
   constructor(private readonly db: Db) {}
 
-  async findActive(): Promise<Service[]> {
-    const rows = await this.db.servicio.findMany({ where: { activo: true }, include: serviceInclude, orderBy: { id: "asc" } });
-    return rows.map(toService);
+  findActive(page: PageRequest): Promise<Page<Service>> {
+    return this.list({ activo: true }, page);
   }
 
   async findActiveById(id: number): Promise<Service | null> {
@@ -16,9 +16,22 @@ export class PrismaServiceRepository implements ServiceRepository {
     return row && toService(row);
   }
 
-  async findAll(): Promise<Service[]> {
-    const rows = await this.db.servicio.findMany({ include: serviceInclude, orderBy: { id: "asc" } });
-    return rows.map(toService);
+  findAll(page: PageRequest): Promise<Page<Service>> {
+    return this.list({}, page);
+  }
+
+  private async list(where: { activo?: boolean }, page: PageRequest): Promise<Page<Service>> {
+    const [rows, total] = await Promise.all([
+      this.db.servicio.findMany({
+        where,
+        include: serviceInclude,
+        orderBy: { id: "asc" },
+        skip: offsetOf(page),
+        take: page.perPage,
+      }),
+      this.db.servicio.count({ where }),
+    ]);
+    return { items: rows.map(toService), total };
   }
 
   async findById(id: number): Promise<Service | null> {

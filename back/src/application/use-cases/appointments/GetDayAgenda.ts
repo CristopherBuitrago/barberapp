@@ -1,4 +1,5 @@
-import { AppointmentStatus, type Appointment } from "../../../domain/entities/Appointment.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
+import type { Page, PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import type { TimeZone } from "../../../domain/value-objects/TimeZone.js";
 
@@ -9,9 +10,8 @@ export class GetDayAgenda {
     private readonly timeZone: TimeZone,
   ) {}
 
-  async execute(input: { date: string; barberId?: number }): Promise<Appointment[]> {
+  execute(input: { date: string; barberId?: number; page: PageRequest }): Promise<Page<Appointment>> {
     const { from, to } = this.timeZone.dayRange(input.date);
-    const appointments = await this.appointments.findStartingBetween(from, to, input.barberId);
-    return appointments.filter((a) => a.status !== AppointmentStatus.Cancelled);
+    return this.appointments.findStartingBetween(from, to, { barberId: input.barberId, excludeCancelled: true }, input.page);
   }
 }

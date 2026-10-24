@@ -1,5 +1,6 @@
 import type { Appointment } from "../../../domain/entities/Appointment.js";
 import type { Client } from "../../../domain/entities/Client.js";
+import { offsetOf, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import type { Db } from "./client.js";
 import { appointmentInclude, toAppointment } from "./mappers.js";
@@ -55,13 +56,28 @@ export class PrismaAppointmentRepository implements AppointmentRepository {
     return row && toAppointment(row);
   }
 
-  async findStartingBetween(from: Date, to: Date, barberId?: number): Promise<Appointment[]> {
-    const rows = await this.db.cita.findMany({
-      where: { inicio: { gte: from, lt: to }, ...(barberId ? { barberoId: barberId } : {}) },
-      include: appointmentInclude,
-      orderBy: { inicio: "asc" },
-    });
-    return rows.map(toAppointment);
+  async findStartingBetween(
+    from: Date,
+    to: Date,
+    filter: { barberId?: number; excludeCancelled?: boolean },
+    page: PageRequest,
+  ): Promise<Page<Appointment>> {
+    const where = {
+      inicio: { gte: from, lt: to },
+      ...(filter.barberId ? { barberoId: filter.barberId } : {}),
+      ...(filter.excludeCancelled ? { estado: { not: "CANCELADA" as const } } : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.db.cita.findMany({
+        where,
+        include: appointmentInclude,
+        orderBy: [{ inicio: "asc" }, { id: "asc" }],
+        skip: offsetOf(page),
+        take: page.perPage,
+      }),
+      this.db.cita.count({ where }),
+    ]);
+    return { items: rows.map(toAppointment), total };
   }
 
   async findScheduledOverlapping(from: Date, to: Date, barberIds: number[], excludeId?: number): Promise<Appointment[]> {

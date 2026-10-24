@@ -16,7 +16,7 @@ before(async () => {
   const reg = await call("POST", "/api/cuenta/registro", {
     body: { nombre: "Cliente", telefono: "3170001111", clave: "cliente1234", aceptaDatos: true },
   });
-  client = reg.body.token;
+  client = reg.data.token;
 });
 after(stopApi);
 
@@ -30,11 +30,11 @@ describe("acceso al panel", () => {
   it("pide sesión de alguien del equipo", async () => {
     const none = await call("GET", "/api/panel/verificar");
     assert.equal(none.status, 401);
-    assert.deepEqual(none.body, { error: "Inicia sesión con una cuenta del equipo" });
+    assert.deepEqual(none.error, { code: "TEAM_ONLY", message: "Inicia sesión con una cuenta del equipo", details: null });
     const asClient = await call("GET", "/api/panel/verificar", { token: client });
     assert.equal(asClient.status, 401);
     const asBarber = await call("GET", "/api/panel/verificar", { token: barber });
-    assert.deepEqual(asBarber.body, { ok: true });
+    assert.deepEqual(asBarber.data, { ok: true });
   });
 });
 
@@ -51,9 +51,9 @@ describe("calendario del panel", () => {
     });
     const first = await call("POST", "/api/panel/citas", { token: barber, body: body("09:00") });
     assert.equal(first.status, 201);
-    assert.equal(first.body.canal, "PANEL");
-    assert.equal(first.body.notas, "Llega temprano");
-    appointmentId = first.body.id;
+    assert.equal(first.data.canal, "PANEL");
+    assert.equal(first.data.notas, "Llega temprano");
+    appointmentId = first.data.id;
     const second = await call("POST", "/api/panel/citas", { token: barber, body: body("10:00") });
     assert.equal(second.status, 201);
   });
@@ -61,14 +61,16 @@ describe("calendario del panel", () => {
   it("lista las citas entre dos fechas, y si quieren, de un solo barbero", async () => {
     const res = await call("GET", `/api/panel/citas?desde=${day}&hasta=${day}`, { token: admin });
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body.map((c: any) => c.inicio), [at(day, "09:00"), at(day, "10:00")]);
+    assert.deepEqual(res.data.map((c: any) => c.inicio), [at(day, "09:00"), at(day, "10:00")]);
     const other = await call("GET", `/api/panel/citas?desde=${day}&hasta=${day}&barberoId=${f.adminId}`, { token: admin });
-    assert.deepEqual(other.body, []);
+    assert.deepEqual(other.data, []);
   });
 
   it("cambia el estado de una cita", async () => {
     const res = await call("PATCH", `/api/panel/citas/${appointmentId}/estado`, { token: barber, body: { estado: "COMPLETADA" } });
-    assert.deepEqual(res.body, { id: appointmentId, estado: "COMPLETADA" });
+    // Devuelve la cita completa como cualquier otra respuesta de una cita
+    assert.equal(res.data.id, appointmentId);
+    assert.equal(res.data.estado, "COMPLETADA");
     const missing = await call("PATCH", "/api/panel/citas/9999/estado", { token: barber, body: { estado: "CANCELADA" } });
     assert.equal(missing.status, 404);
     const bad = await call("PATCH", `/api/panel/citas/${appointmentId}/estado`, { token: barber, body: { estado: "OTRO" } });
@@ -77,10 +79,10 @@ describe("calendario del panel", () => {
 
   it("lista todos los barberos con sus horarios", async () => {
     const res = await call("GET", "/api/panel/barberos", { token: barber });
-    assert.equal(res.body.length, 3);
-    assert.equal(res.body[0].nombre, "Diego");
-    assert.equal(res.body[0].horarios.length, 7);
-    assert.ok("esAdmin" in res.body[0]);
+    assert.equal(res.data.length, 3);
+    assert.equal(res.data[0].nombre, "Diego");
+    assert.equal(res.data[0].horarios.length, 7);
+    assert.ok("esAdmin" in res.data[0]);
   });
 
   it("crea, lista y borra bloqueos", async () => {
@@ -90,9 +92,9 @@ describe("calendario del panel", () => {
     });
     assert.equal(created.status, 201);
     const list = await call("GET", `/api/panel/bloqueos?desde=${day}&hasta=${day}`, { token: barber });
-    assert.deepEqual(list.body, [
+    assert.deepEqual(list.data, [
       {
-        id: created.body.id,
+        id: created.data.id,
         barberoId: f.barberId,
         inicio: at(day, "12:00"),
         fin: at(day, "13:00"),
@@ -100,11 +102,12 @@ describe("calendario del panel", () => {
         barbero: { id: f.barberId, nombre: "Andrés" },
       },
     ]);
-    const removed = await call("DELETE", `/api/panel/bloqueos/${created.body.id}`, { token: barber });
-    assert.equal(removed.status, 204);
-    const again = await call("DELETE", `/api/panel/bloqueos/${created.body.id}`, { token: barber });
+    const removed = await call("DELETE", `/api/panel/bloqueos/${created.data.id}`, { token: barber });
+    assert.equal(removed.status, 200);
+    assert.deepEqual(removed.body, { success: true, data: null, error: null });
+    const again = await call("DELETE", `/api/panel/bloqueos/${created.data.id}`, { token: barber });
     assert.equal(again.status, 404);
-    assert.deepEqual(again.body, { error: "Bloqueo no encontrado" });
+    assert.deepEqual(again.error, { code: "TIME_BLOCK_NOT_FOUND", message: "Bloqueo no encontrado", details: null });
   });
 });
 
@@ -115,13 +118,13 @@ describe("administración de servicios", () => {
   it("es solo para el admin", async () => {
     const res = await call("GET", "/api/panel/servicios", { token: barber });
     assert.equal(res.status, 403);
-    assert.deepEqual(res.body, { error: "Solo el administrador puede hacer esto" });
+    assert.deepEqual(res.error, { code: "ADMIN_ONLY", message: "Solo el administrador puede hacer esto", details: null });
   });
 
   it("sube una imagen y la sirve con caché larga", async () => {
     const res = await call("POST", "/api/panel/imagenes", { token: admin, raw: { type: "image/png", data: PNG } });
     assert.equal(res.status, 201);
-    imageUrl = res.body.url;
+    imageUrl = res.data.url;
     assert.match(imageUrl, /^\/api\/imagenes\/\d+$/);
     const served = await fetch(`http://127.0.0.1:${process.env.TEST_PORT ?? 3999}${imageUrl}`);
     assert.equal(served.status, 200);
@@ -133,7 +136,7 @@ describe("administración de servicios", () => {
   it("rechaza archivos que no son imágenes", async () => {
     const res = await call("POST", "/api/panel/imagenes", { token: admin, raw: { type: "text/plain", data: Buffer.from("hola") } });
     assert.equal(res.status, 400);
-    assert.deepEqual(res.body, { error: "Sube una imagen JPG, PNG o WebP" });
+    assert.deepEqual(res.error, { code: "INVALID_IMAGE", message: "Sube una imagen JPG, PNG o WebP", details: null });
   });
 
   it("crea un servicio y guarda quién lo creó", async () => {
@@ -142,24 +145,24 @@ describe("administración de servicios", () => {
       body: { nombre: "Cejas", descripcion: "Perfilado", duracionMin: 15, precio: 8000, imagenUrl: imageUrl, activo: true },
     });
     assert.equal(res.status, 201);
-    serviceId = res.body.id;
-    assert.equal(res.body.imagenUrl, imageUrl);
-    assert.deepEqual(res.body.creadoPor, { id: f.adminId, nombre: "Diego" });
-    assert.deepEqual(res.body.actualizadoPor, { id: f.adminId, nombre: "Diego" });
+    serviceId = res.data.id;
+    assert.equal(res.data.imagenUrl, imageUrl);
+    assert.deepEqual(res.data.creadoPor, { id: f.adminId, nombre: "Diego" });
+    assert.deepEqual(res.data.actualizadoPor, { id: f.adminId, nombre: "Diego" });
     const catalog = await call("GET", "/api/servicios");
-    assert.ok(catalog.body.some((s: any) => s.id === serviceId));
+    assert.ok(catalog.data.some((s: any) => s.id === serviceId));
   });
 
   it("oculta un servicio del catálogo y el admin igual lo ve en su lista", async () => {
     const res = await call("PATCH", `/api/panel/servicios/${serviceId}`, { token: admin, body: { activo: false } });
     assert.equal(res.status, 200);
-    assert.equal(res.body.activo, false);
-    assert.equal(res.body.nombre, "Cejas");
+    assert.equal(res.data.activo, false);
+    assert.equal(res.data.nombre, "Cejas");
     const catalog = await call("GET", "/api/servicios");
-    assert.ok(!catalog.body.some((s: any) => s.id === serviceId));
+    assert.ok(!catalog.data.some((s: any) => s.id === serviceId));
     const all = await call("GET", "/api/panel/servicios", { token: admin });
-    assert.deepEqual(all.body.map((s: any) => s.nombre), ["Corte", "Corte + barba", "Oculto", "Cejas"]);
-    assert.equal(all.body[0].creadoPor, null);
+    assert.deepEqual(all.data.map((s: any) => s.nombre), ["Corte", "Corte + barba", "Oculto", "Cejas"]);
+    assert.equal(all.data[0].creadoPor, null);
   });
 
   it("valida los datos del servicio y los ids que no existen", async () => {
@@ -170,6 +173,6 @@ describe("administración de servicios", () => {
     assert.equal(bad.status, 400);
     const missing = await call("PATCH", "/api/panel/servicios/9999", { token: admin, body: { precio: 1 } });
     assert.equal(missing.status, 404);
-    assert.deepEqual(missing.body, { error: "Servicio no encontrado" });
+    assert.deepEqual(missing.error, { code: "SERVICE_NOT_FOUND", message: "Servicio no encontrado", details: null });
   });
 });

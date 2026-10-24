@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { Appointment, BookingChannel } from "../../../domain/entities/Appointment.js";
 import type { Barber } from "../../../domain/entities/Barber.js";
 import { Client } from "../../../domain/entities/Client.js";
@@ -28,15 +29,15 @@ export class CreateAppointment {
         ? { name: input.sessionClient.name, phone: input.sessionClient.phone, acceptsDataPolicy: true }
         : input.client;
     if (isWeb && !contact.acceptsDataPolicy) {
-      throw new RuleViolationError("Debes aceptar el tratamiento de datos personales");
+      throw new RuleViolationError("Debes aceptar el tratamiento de datos personales", ErrorCode.DataPolicyRequired);
     }
 
     const service = await this.services.findActiveById(input.serviceId);
-    if (!service) throw new NotFoundError("Servicio no encontrado");
+    if (!service) throw new NotFoundError("Servicio no encontrado", ErrorCode.ServiceNotFound);
 
     const start = input.start;
     const end = addMinutes(start, service.durationMin);
-    if (start < this.clock.now()) throw new RuleViolationError("Esa hora ya pasó");
+    if (start < this.clock.now()) throw new RuleViolationError("Esa hora ya pasó", ErrorCode.TimeInPast);
 
     return this.transactions.run(async (repos) => {
       const barber = await this.pickBarber(repos, input.barberId, start, end);
@@ -46,7 +47,7 @@ export class CreateAppointment {
       if (input.channel !== BookingChannel.Panel) {
         const active = await repos.appointments.findActiveByClient(client, this.clock.now());
         if (active) {
-          throw new ConflictError("Ya tienes una cita agendada. Cancélala o espera a que pase para reservar otra.");
+          throw new ConflictError("Ya tienes una cita agendada. Cancélala o espera a que pase para reservar otra.", ErrorCode.ActiveAppointmentExists);
         }
       }
 
@@ -87,13 +88,13 @@ export class CreateAppointment {
     if (barberId) {
       const barber = await repos.barbers.findById(barberId);
       if (!barber || !(await isBarberFree(repos, this.timeZone, barber, start, end))) {
-        throw new ConflictError("Esa hora ya no está disponible con ese barbero");
+        throw new ConflictError("Esa hora ya no está disponible con ese barbero", ErrorCode.SlotTaken);
       }
       return barber;
     }
     for (const barber of await repos.barbers.findActive()) {
       if (await isBarberFree(repos, this.timeZone, barber, start, end)) return barber;
     }
-    throw new ConflictError("Esa hora ya no está disponible");
+    throw new ConflictError("Esa hora ya no está disponible", ErrorCode.SlotTaken);
   }
 }

@@ -7,6 +7,7 @@ import { SessionIssuer } from "../../src/application/use-cases/accounts/SessionI
 import { UpdateProfile } from "../../src/application/use-cases/accounts/UpdateProfile.js";
 import { SaveTeamAccount } from "../../src/application/use-cases/barbers/SaveTeamAccount.js";
 import { ConflictError, NotFoundError, UnauthorizedError } from "../../src/domain/errors/DomainError.js";
+import { ErrorCode } from "../../src/domain/errors/ErrorCode.js";
 import { CountingTokens, FixedClock, fakeHasher, memoryRepositories } from "./fakes.js";
 
 let repos: ReturnType<typeof memoryRepositories>;
@@ -75,7 +76,7 @@ describe("inicio de sesión", () => {
     repos.store.addClient({ name: "Ana", phone: "573102220000", passwordHash: "hash:ana12345" });
     await assert.rejects(
       login().execute({ phone: "3102220000", password: "mala" }),
-      new UnauthorizedError("Teléfono o contraseña incorrectos"),
+      new UnauthorizedError("Teléfono o contraseña incorrectos", ErrorCode.InvalidCredentials),
     );
   });
 });
@@ -124,7 +125,7 @@ describe("cuenta del equipo", () => {
     const save = new SaveTeamAccount(repos.barbers, repos.clients, fakeHasher);
     await assert.rejects(
       save.execute({ name: "Nadie", phone: "3001234567", password: "clave1234", isAdmin: false }),
-      new NotFoundError('No hay un barbero llamado "Nadie". Barberos: Diego'),
+      new NotFoundError('No hay un barbero llamado "Nadie". Barberos: Diego', ErrorCode.BarberNotFound),
     );
   });
 });

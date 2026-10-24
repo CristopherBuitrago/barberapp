@@ -165,6 +165,32 @@ Las pruebas de la API borran y vuelven a cargar `barberia_test` cada vez, nunca 
 
 ## API del back
 
+### Formato de las respuestas
+
+Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés y los datos de adentro en español.
+
+```jsonc
+// Un objeto
+{ "success": true, "data": { "id": 5, "inicio": "2026-10-30T10:00:00-05:00", ... }, "error": null }
+
+// Una lista: siempre paginada con ?page=1&perPage=20 (máximo 100)
+{ "success": true, "data": [ ... ], "pagination": { "page": 1, "perPage": 20, "total": 57 }, "error": null }
+
+// Algo que no devuelve nada (cerrar sesión, borrar un bloqueo)
+{ "success": true, "data": null, "error": null }
+
+// Un error
+{ "success": false, "data": null, "error": { "code": "SLOT_TAKEN", "message": "Esa hora ya no está disponible", "details": null } }
+```
+
+- `code` es fijo y sirve para decidir en el front o el agente. `message` está en español y se le puede mostrar a la persona.
+- En un error de validación (`VALIDATION_ERROR`), `details` dice qué campo falló: `[{ "field": "fecha", "message": "Formato YYYY-MM-DD" }]`.
+- Los códigos están en `back/src/domain/errors/ErrorCode.ts`: `SERVICE_NOT_FOUND`, `APPOINTMENT_NOT_FOUND`, `SLOT_TAKEN`, `ACTIVE_APPOINTMENT_EXISTS`, `APPOINTMENT_NOT_ACTIVE`, `TIME_IN_PAST`, `DATA_POLICY_REQUIRED`, `PHONE_ALREADY_REGISTERED`, `INVALID_CREDENTIALS`, `AUTH_REQUIRED`, `TEAM_ONLY`, `ADMIN_ONLY`, `INVALID_API_KEY`, `ROUTE_NOT_FOUND`, `INTERNAL_ERROR`, entre otros.
+- La única ruta que no usa el sobre es `GET /api/imagenes/:id`, que devuelve la imagen tal cual porque la usa un `<img>`.
+- El front (`front/src/api.ts`) y el agente (`HttpBarberiaApi`) sacan `data` del sobre, y para las listas que necesitan completas piden todas las páginas.
+
+### Rutas
+
 | Ruta | Quién | Para qué |
 |---|---|---|
 | `GET /api/servicios`, `GET /api/barberos` | público | catálogo |

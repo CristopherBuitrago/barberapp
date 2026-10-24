@@ -5,6 +5,9 @@
 import { z } from "zod";
 import { AppointmentStatus } from "../../../domain/entities/Appointment.js";
 
+// Los mensajes de validación que zod pone solo también salen en español
+z.config(z.locales.es());
+
 export const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato YYYY-MM-DD");
 export const instant = z.iso.datetime({ offset: true }).transform((s) => new Date(s));
 export const id = z.coerce.number().int().positive();
@@ -13,6 +16,14 @@ const name = z.string().trim().min(1).max(80);
 const password = z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(100);
 
 export const idParam = z.object({ id });
+
+export const MAX_PER_PAGE = 100;
+
+/** ?page=1&perPage=20 en todas las listas. Si no los mandan, primera página de 20 */
+export const pageQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  perPage: z.coerce.number().int().min(1).max(MAX_PER_PAGE).default(20),
+});
 
 export const newAppointment = z.object({
   servicioId: id,

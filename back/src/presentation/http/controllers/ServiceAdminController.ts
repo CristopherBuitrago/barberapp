@@ -7,7 +7,8 @@ import type { Barber } from "../../../domain/entities/Barber.js";
 import type { EditableServiceFields } from "../../../domain/entities/Service.js";
 import { requiredSession } from "../middlewares/auth.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
-import { idParam, serviceBody } from "../validators/schemas.js";
+import { sendData, sendPage } from "../responses.js";
+import { idParam, pageQuery, serviceBody } from "../validators/schemas.js";
 
 type ServiceBody = Partial<ReturnType<typeof serviceBody.parse>>;
 
@@ -39,15 +40,15 @@ export class ServiceAdminController {
     return barber;
   }
 
-  list: RequestHandler = async (_req, res) => {
-    const services = await this.listServices.execute();
-    res.json(services.map((s) => this.presenter.serviceForAdmin(s)));
+  list: RequestHandler = async (req, res) => {
+    const page = pageQuery.parse(req.query);
+    sendPage(res, await this.listServices.execute(page), page, (s) => this.presenter.serviceForAdmin(s));
   };
 
   create: RequestHandler = async (req, res) => {
     const fields = toFields(serviceBody.parse(req.body)) as EditableServiceFields;
     const service = await this.createService.execute({ fields, author: this.author(res) });
-    res.status(201).json(this.presenter.serviceForAdmin(service));
+    sendData(res, this.presenter.serviceForAdmin(service), 201);
   };
 
   /** Sirve para editar y también para ocultar o mostrar */
@@ -57,7 +58,7 @@ export class ServiceAdminController {
       fields: toFields(serviceBody.partial().parse(req.body)),
       author: this.author(res),
     });
-    res.json(this.presenter.serviceForAdmin(service));
+    sendData(res, this.presenter.serviceForAdmin(service));
   };
 
   /** El cuerpo es el archivo tal cual. Devuelve la URL con la que se muestra */
@@ -66,6 +67,6 @@ export class ServiceAdminController {
       type: req.header("content-type") ?? "",
       data: Buffer.isBuffer(req.body) ? new Uint8Array(req.body) : null,
     });
-    res.status(201).json({ url: image.url });
+    sendData(res, { url: image.url }, 201);
   };
 }

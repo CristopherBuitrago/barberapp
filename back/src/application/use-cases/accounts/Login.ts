@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { UnauthorizedError } from "../../../domain/errors/DomainError.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { ClientRepository } from "../../../domain/repositories/ClientRepository.js";
@@ -31,6 +32,6 @@ export class Login {
       return { token: await this.sessionIssuer.issue(client), profile: profileOf(client) };
     }
 
-    throw new UnauthorizedError("Teléfono o contraseña incorrectos");
+    throw new UnauthorizedError("Teléfono o contraseña incorrectos", ErrorCode.InvalidCredentials);
   }
 }

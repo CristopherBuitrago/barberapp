@@ -1,3 +1,4 @@
+import { ErrorCode } from "../errors/ErrorCode.js";
 import { ensure } from "../errors/DomainError.js";
 import { Entity } from "./Entity.js";
 
@@ -59,7 +60,7 @@ export class WorkSchedule extends Entity {
   /** Las dos horas juntas, porque la de inicio tiene que ir antes que la de fin */
   setHours(startTime: string, endTime: string): void {
     ensure(TIME.test(startTime) && TIME.test(endTime), "Las horas van en formato HH:MM");
-    ensure(startTime < endTime, "La jornada tiene que empezar antes de terminar");
+    ensure(startTime < endTime, "La jornada tiene que empezar antes de terminar", ErrorCode.InvalidTimeRange);
     this._startTime = startTime;
     this._endTime = endTime;
   }

@@ -2,6 +2,8 @@ import type { Request, RequestHandler, Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 import type { AuthenticateSession } from "../../../application/use-cases/accounts/AuthenticateSession.js";
 import type { Session } from "../../../domain/entities/Session.js";
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
+import { sendError } from "../responses.js";
 
 /** Compara dos claves sin dar pistas por lo que se demora. */
 function safeEqual(a: string | undefined, b: string): boolean {
@@ -33,7 +35,7 @@ export function requiredSession(res: Response): Session {
 
 export const requireSession: RequestHandler = (_req, res, next) => {
   if (!sessionOf(res)) {
-    res.status(401).json({ error: "Inicia sesión para continuar" });
+    sendError(res, 401, ErrorCode.AuthRequired, "Inicia sesión para continuar");
     return;
   }
   next();
@@ -43,7 +45,7 @@ export const requireSession: RequestHandler = (_req, res, next) => {
 export const requireTeam: RequestHandler = (_req, res, next) => {
   const session = sessionOf(res);
   if (!session?.isTeam) {
-    res.status(401).json({ error: "Inicia sesión con una cuenta del equipo" });
+    sendError(res, 401, ErrorCode.TeamOnly, "Inicia sesión con una cuenta del equipo");
     return;
   }
   next();
@@ -52,7 +54,7 @@ export const requireTeam: RequestHandler = (_req, res, next) => {
 /** Solo el admin. Va después de requireTeam. */
 export const requireAdmin: RequestHandler = (_req, res, next) => {
   if (sessionOf(res)?.role !== "ADMIN") {
-    res.status(403).json({ error: "Solo el administrador puede hacer esto" });
+    sendError(res, 403, ErrorCode.AdminOnly, "Solo el administrador puede hacer esto");
     return;
   }
   next();
@@ -66,7 +68,7 @@ export function isAgent(req: Request, agentApiKey: string): boolean {
 export function requireAgent(agentApiKey: string): RequestHandler {
   return (req, res, next) => {
     if (!isAgent(req, agentApiKey)) {
-      res.status(401).json({ error: "No autorizado" });
+      sendError(res, 401, ErrorCode.InvalidApiKey, "No autorizado");
       return;
     }
     next();

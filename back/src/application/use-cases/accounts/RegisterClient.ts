@@ -1,3 +1,4 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { Client } from "../../../domain/entities/Client.js";
 import { ConflictError, RuleViolationError } from "../../../domain/errors/DomainError.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
@@ -23,13 +24,13 @@ export class RegisterClient {
 
   async execute(input: RegisterClientInput): Promise<RegisterResult> {
     if (input.password.length < MIN_PASSWORD_LENGTH) {
-      throw new RuleViolationError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+      throw new RuleViolationError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`, ErrorCode.PasswordTooShort);
     }
     const phone = normalizePhone(input.phone);
     const taken = "Ese teléfono ya tiene una cuenta. Inicia sesión.";
-    if (await this.barbers.existsWithPhone(phone)) throw new ConflictError(taken);
+    if (await this.barbers.existsWithPhone(phone)) throw new ConflictError(taken, ErrorCode.PhoneAlreadyRegistered);
     const existing = await this.clients.findByPhone(phone);
-    if (existing?.hasAccount) throw new ConflictError(taken);
+    if (existing?.hasAccount) throw new ConflictError(taken, ErrorCode.PhoneAlreadyRegistered);
 
     // Si ya había reservado sin cuenta, por la web o WhatsApp, todo queda en la misma ficha
     const client = existing ?? Client.create({ name: input.name, phone }, this.clock.now());

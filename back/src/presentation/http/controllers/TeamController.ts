@@ -1,6 +1,8 @@
 import type { RequestHandler } from "express";
 import type { ListTeam } from "../../../application/use-cases/barbers/ListTeam.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
+import { sendPage } from "../responses.js";
+import { pageQuery } from "../validators/schemas.js";
 
 export class TeamController {
   constructor(
@@ -8,8 +10,8 @@ export class TeamController {
     private readonly presenter: ApiPresenter,
   ) {}
 
-  list: RequestHandler = async (_req, res) => {
-    const team = await this.listTeam.execute();
-    res.json(team.map((b) => this.presenter.teamMember(b)));
+  list: RequestHandler = async (req, res) => {
+    const page = pageQuery.parse(req.query);
+    sendPage(res, await this.listTeam.execute(page), page, (b) => this.presenter.teamMember(b));
   };
 }

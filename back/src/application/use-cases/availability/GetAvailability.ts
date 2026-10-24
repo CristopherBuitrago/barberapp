@@ -1,5 +1,7 @@
+import { ErrorCode } from "../../../domain/errors/ErrorCode.js";
 import { NotFoundError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
+import { paginate, type Page, type PageRequest } from "../../../domain/repositories/Pagination.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { ServiceRepository } from "../../../domain/repositories/ServiceRepository.js";
 import type { TimeBlockRepository } from "../../../domain/repositories/TimeBlockRepository.js";
@@ -25,9 +27,9 @@ export class GetAvailability {
     private readonly intervalMin: number,
   ) {}
 
-  async execute(input: { serviceId: number; date: string; barberId?: number }): Promise<AvailableSlot[]> {
+  async execute(input: { serviceId: number; date: string; barberId?: number; page: PageRequest }): Promise<Page<AvailableSlot>> {
     const service = await this.services.findActiveById(input.serviceId);
-    if (!service) throw new NotFoundError("Servicio no encontrado");
+    if (!service) throw new NotFoundError("Servicio no encontrado", ErrorCode.ServiceNotFound);
 
     const { from, to } = this.timeZone.dayRange(input.date);
     const barbers = await this.barbers.findActive(input.barberId);
@@ -37,7 +39,7 @@ export class GetAvailability {
       this.appointments.findScheduledOverlapping(from, to, ids),
     ]);
 
-    return findFreeSlots({
+    const slots = findFreeSlots({
       date: input.date,
       durationMin: service.durationMin,
       intervalMin: this.intervalMin,
@@ -48,5 +50,6 @@ export class GetAvailability {
         busy: [...blocks, ...appointments].filter((busy) => busy.barber.equals(barber)),
       })),
     });
+    return paginate(slots, input.page);
   }
 }

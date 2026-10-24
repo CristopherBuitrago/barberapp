@@ -7,6 +7,7 @@ import type { RegisterClient } from "../../../application/use-cases/accounts/Reg
 import type { UpdateProfile } from "../../../application/use-cases/accounts/UpdateProfile.js";
 import { requiredSession } from "../middlewares/auth.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
+import { sendData } from "../responses.js";
 import { clientProfileBody, loginBody, registerBody, teamProfileBody } from "../validators/schemas.js";
 
 /** Cuentas de la web. Clientes y equipo entran con teléfono y contraseña. */
@@ -23,7 +24,7 @@ export class AccountController {
   login: RequestHandler = async (req, res) => {
     const body = loginBody.parse(req.body);
     const result = await this.loginUseCase.execute({ phone: body.telefono, password: body.clave });
-    res.json({ token: result.token, usuario: this.presenter.profile(result.profile) });
+    sendData(res, { token: result.token, usuario: this.presenter.profile(result.profile) });
   };
 
   register: RequestHandler = async (req, res) => {
@@ -34,15 +35,15 @@ export class AccountController {
       password: body.clave,
       birthDate: body.fechaNacimiento,
     });
-    res.status(201).json({
-      token: result.token,
-      usuario: this.presenter.profile(result.profile),
-      descuentoPct: result.welcomeDiscountPct,
-    });
+    sendData(
+      res,
+      { token: result.token, usuario: this.presenter.profile(result.profile), descuentoPct: result.welcomeDiscountPct },
+      201,
+    );
   };
 
   me: RequestHandler = (_req, res) => {
-    res.json(this.presenter.profile(sessionProfile(requiredSession(res))));
+    sendData(res, this.presenter.profile(sessionProfile(requiredSession(res))));
   };
 
   /** Los clientes editan nombre y fecha de nacimiento, el equipo solo el nombre */
@@ -52,16 +53,17 @@ export class AccountController {
       ? clientProfileBody.parse(req.body)
       : { ...teamProfileBody.parse(req.body), fechaNacimiento: undefined };
     const profile = await this.updateProfile.execute({ session, name: body.nombre, birthDate: body.fechaNacimiento });
-    res.json(this.presenter.profile(profile));
+    sendData(res, this.presenter.profile(profile));
   };
 
   logout: RequestHandler = async (_req, res) => {
     await this.logoutUseCase.execute(requiredSession(res));
-    res.status(204).end();
+    sendData(res, null);
   };
 
+  /** null si no tiene cita activa, o si es del equipo */
   activeAppointment: RequestHandler = async (_req, res) => {
     const appointment = await this.getActiveAppointment.execute(requiredSession(res));
-    res.json(appointment ? this.presenter.appointment(appointment) : null);
+    sendData(res, appointment ? this.presenter.appointment(appointment) : null);
   };
 }
