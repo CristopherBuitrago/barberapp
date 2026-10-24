@@ -23,7 +23,7 @@ const whatsappDeConsola: ClienteWhatsApp = {
 };
 
 const agente = new AgenteBarberia({
-  claude: new Anthropic(),
+  claude: new Anthropic({ apiKey: config.claude.apiKey }),
   api: new HttpBarberiaApi(config.back.url, config.back.apiKey),
   whatsapp: whatsappDeConsola,
   conversaciones: new ConversacionesEnMemoria(),

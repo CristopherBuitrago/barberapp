@@ -6,7 +6,7 @@
  * El teléfono también es el que el agente de WhatsApp reconoce como "modo barbero".
  */
 import { parseArgs } from "node:util";
-import { PrismaClient } from "@prisma/client";
+import { db } from "../src/lib/db.js";
 import { hashClave } from "../src/lib/claves.js";
 import { normalizarTelefono } from "../src/lib/telefono.js";
 
@@ -28,7 +28,6 @@ if (values.clave.length < 6) {
   process.exit(1);
 }
 
-const db = new PrismaClient();
 try {
   const barbero = await db.barbero.findFirst({ where: { nombre: { equals: values.nombre, mode: "insensitive" } } });
   if (!barbero) {

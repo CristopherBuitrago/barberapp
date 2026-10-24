@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const db = new PrismaClient();
+import { db } from "../src/lib/db.js";
 
 // Datos de ejemplo para desarrollo. Ajustar con los servicios y barberos reales.
 async function main() {
