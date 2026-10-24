@@ -41,7 +41,7 @@ export class AppointmentController {
       client: { name: body.cliente.nombre, phone: body.cliente.telefono, acceptsDataPolicy: body.cliente.aceptaDatos },
       channel: isAgent(req, this.agentApiKey) ? BookingChannel.WhatsApp : BookingChannel.Web,
       notes: body.notas,
-      sessionClient: session?.role === "CLIENTE" ? session.client : undefined,
+      sessionClient: session?.client ?? undefined,
     });
     res.status(201).json(this.presenter.appointment(appointment));
   };
@@ -91,7 +91,7 @@ export class AppointmentController {
 
   updateStatus: RequestHandler = async (req, res) => {
     const { estado } = statusBody.parse(req.body);
-    const result = await this.changeStatus.execute({ appointmentId: idParam.parse(req.params).id, status: estado });
-    res.json({ id: result.id, estado: result.status });
+    const appointment = await this.changeStatus.execute({ appointmentId: idParam.parse(req.params).id, status: estado });
+    res.json({ id: appointment.id, estado: appointment.status });
   };
 }

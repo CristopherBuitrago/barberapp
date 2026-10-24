@@ -1,4 +1,4 @@
-import type { AppointmentDetail } from "../../../domain/entities/Appointment.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
 import { NotFoundError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import { normalizePhone } from "../../../domain/value-objects/PhoneNumber.js";
@@ -11,9 +11,9 @@ export async function findOwnedAppointment(
   appointments: AppointmentRepository,
   appointmentId: number,
   phone: string,
-): Promise<AppointmentDetail> {
-  const appointment = await appointments.findDetailById(appointmentId);
-  if (!appointment || appointment.client.phone !== normalizePhone(phone)) {
+): Promise<Appointment> {
+  const appointment = await appointments.findById(appointmentId);
+  if (!appointment || !appointment.belongsToPhone(normalizePhone(phone))) {
     throw new NotFoundError("Cita no encontrada");
   }
   return appointment;

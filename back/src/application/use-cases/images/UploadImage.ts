@@ -1,14 +1,14 @@
-import { isImageType, type Image } from "../../../domain/entities/Image.js";
-import { RuleViolationError } from "../../../domain/errors/DomainError.js";
+import { Image } from "../../../domain/entities/Image.js";
 import type { ImageRepository } from "../../../domain/repositories/ImageRepository.js";
+import type { Clock } from "../../ports/Clock.js";
 
 export class UploadImage {
-  constructor(private readonly images: ImageRepository) {}
+  constructor(
+    private readonly images: ImageRepository,
+    private readonly clock: Clock,
+  ) {}
 
-  async execute(input: { type: string; data: Uint8Array | null }): Promise<Image> {
-    if (!isImageType(input.type) || !input.data || input.data.length === 0) {
-      throw new RuleViolationError("Sube una imagen JPG, PNG o WebP");
-    }
-    return this.images.create(input.type, input.data);
+  execute(input: { type: string; data: Uint8Array | null }): Promise<Image> {
+    return this.images.save(Image.upload(input.type, input.data, this.clock.now()));
   }
 }

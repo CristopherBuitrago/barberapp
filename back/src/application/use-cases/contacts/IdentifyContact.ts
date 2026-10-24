@@ -1,4 +1,3 @@
-import { hasPendingWelcomeDiscount } from "../../../domain/entities/Client.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { ClientRepository } from "../../../domain/repositories/ClientRepository.js";
@@ -22,16 +21,13 @@ export class IdentifyContact {
   async execute(rawPhone: string): Promise<Contact> {
     const phone = normalizePhone(rawPhone);
     const barber = await this.barbers.findActiveByPhone(phone);
-    if (barber) return { kind: "barber", barber: { id: barber.id, name: barber.name } };
+    if (barber) return { kind: "barber", barber };
 
     const client = await this.clients.findByPhone(phone);
     return {
       kind: "client",
-      client: client && {
-        name: client.name,
-        registered: client.registered,
-        pendingDiscountPct: hasPendingWelcomeDiscount(client) ? this.welcomeDiscountPct : 0,
-      },
+      client,
+      pendingDiscountPct: client?.hasPendingWelcomeDiscount ? this.welcomeDiscountPct : 0,
       upcomingAppointments: await this.appointments.findUpcomingByClientPhone(phone, this.clock.now()),
     };
   }

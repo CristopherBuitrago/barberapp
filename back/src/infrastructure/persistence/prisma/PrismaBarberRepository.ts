@@ -1,7 +1,7 @@
-import type { Barber, BarberWithSchedules, WorkSchedule } from "../../../domain/entities/Barber.js";
-import type { BarberRepository, WorkScheduleRepository } from "../../../domain/repositories/BarberRepository.js";
+import type { Barber } from "../../../domain/entities/Barber.js";
+import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { Db } from "./client.js";
-import { toBarber, toWorkSchedule } from "./mappers.js";
+import { barberInclude, toBarber } from "./mappers.js";
 
 export class PrismaBarberRepository implements BarberRepository {
   constructor(private readonly db: Db) {}
@@ -9,18 +9,24 @@ export class PrismaBarberRepository implements BarberRepository {
   async findActive(barberId?: number): Promise<Barber[]> {
     const rows = await this.db.barbero.findMany({
       where: { activo: true, ...(barberId ? { id: barberId } : {}) },
+      include: barberInclude,
       orderBy: { id: "asc" },
     });
     return rows.map(toBarber);
   }
 
-  async findAllWithSchedules(): Promise<BarberWithSchedules[]> {
-    const rows = await this.db.barbero.findMany({ include: { horarios: true }, orderBy: { id: "asc" } });
-    return rows.map((row) => ({ ...toBarber(row), schedules: row.horarios.map(toWorkSchedule) }));
+  async findAll(): Promise<Barber[]> {
+    const rows = await this.db.barbero.findMany({ include: barberInclude, orderBy: { id: "asc" } });
+    return rows.map(toBarber);
+  }
+
+  async findById(id: number): Promise<Barber | null> {
+    const row = await this.db.barbero.findUnique({ where: { id }, include: barberInclude });
+    return row && toBarber(row);
   }
 
   async findActiveByPhone(phone: string): Promise<Barber | null> {
-    const row = await this.db.barbero.findFirst({ where: { telefono: phone, activo: true } });
+    const row = await this.db.barbero.findFirst({ where: { telefono: phone, activo: true }, include: barberInclude });
     return row && toBarber(row);
   }
 
@@ -29,31 +35,24 @@ export class PrismaBarberRepository implements BarberRepository {
   }
 
   async findByName(name: string): Promise<Barber | null> {
-    const row = await this.db.barbero.findFirst({ where: { nombre: { equals: name, mode: "insensitive" } } });
+    const row = await this.db.barbero.findFirst({
+      where: { nombre: { equals: name, mode: "insensitive" } },
+      include: barberInclude,
+    });
     return row && toBarber(row);
   }
 
-  async updateName(id: number, name: string): Promise<Barber> {
-    return toBarber(await this.db.barbero.update({ where: { id }, data: { nombre: name } }));
-  }
-
-  async setAccount(id: number, data: { phone: string; passwordHash: string; isAdmin: boolean }): Promise<Barber> {
-    const row = await this.db.barbero.update({
-      where: { id },
-      data: { telefono: data.phone, claveHash: data.passwordHash, esAdmin: data.isAdmin },
-    });
+  async save(barber: Barber): Promise<Barber> {
+    const data = {
+      nombre: barber.name,
+      telefono: barber.phone,
+      activo: barber.active,
+      claveHash: barber.passwordHash,
+      esAdmin: barber.isAdmin,
+    };
+    const row = barber.isNew
+      ? await this.db.barbero.create({ data, include: barberInclude })
+      : await this.db.barbero.update({ where: { id: barber.id }, data, include: barberInclude });
     return toBarber(row);
-  }
-}
-
-export class PrismaWorkScheduleRepository implements WorkScheduleRepository {
-  constructor(private readonly db: Db) {}
-
-  async findByWeekday(weekday: number, barberIds: number[]): Promise<WorkSchedule[]> {
-    const rows = await this.db.horarioBarbero.findMany({
-      where: { diaSemana: weekday, barberoId: { in: barberIds } },
-      orderBy: { id: "asc" },
-    });
-    return rows.map(toWorkSchedule);
   }
 }

@@ -1,4 +1,4 @@
-import type { AppointmentDetail } from "../../../domain/entities/Appointment.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import { addDays, type TimeZone } from "../../../domain/value-objects/TimeZone.js";
 
@@ -9,7 +9,7 @@ export class ListAppointments {
     private readonly timeZone: TimeZone,
   ) {}
 
-  execute(input: { fromDate: string; toDate: string; barberId?: number }): Promise<AppointmentDetail[]> {
+  execute(input: { fromDate: string; toDate: string; barberId?: number }): Promise<Appointment[]> {
     return this.appointments.findStartingBetween(
       this.timeZone.toInstant(input.fromDate, "00:00"),
       this.timeZone.toInstant(addDays(input.toDate, 1), "00:00"),

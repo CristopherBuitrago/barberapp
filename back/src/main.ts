@@ -34,10 +34,7 @@ import { TimeZone } from "./domain/value-objects/TimeZone.js";
 import { loadConfig } from "./infrastructure/config/env.js";
 import { createPrismaClient } from "./infrastructure/persistence/prisma/client.js";
 import { PrismaAppointmentRepository } from "./infrastructure/persistence/prisma/PrismaAppointmentRepository.js";
-import {
-  PrismaBarberRepository,
-  PrismaWorkScheduleRepository,
-} from "./infrastructure/persistence/prisma/PrismaBarberRepository.js";
+import { PrismaBarberRepository } from "./infrastructure/persistence/prisma/PrismaBarberRepository.js";
 import { PrismaClientRepository } from "./infrastructure/persistence/prisma/PrismaClientRepository.js";
 import { PrismaImageRepository } from "./infrastructure/persistence/prisma/PrismaImageRepository.js";
 import { PrismaServiceRepository } from "./infrastructure/persistence/prisma/PrismaServiceRepository.js";
@@ -67,7 +64,6 @@ const appointments = new PrismaAppointmentRepository(prisma);
 const barbers = new PrismaBarberRepository(prisma);
 const clients = new PrismaClientRepository(prisma);
 const images = new PrismaImageRepository(prisma);
-const schedules = new PrismaWorkScheduleRepository(prisma);
 const services = new PrismaServiceRepository(prisma);
 const sessions = new PrismaSessionRepository(prisma);
 const timeBlocks = new PrismaTimeBlockRepository(prisma);
@@ -78,7 +74,7 @@ const tokens = new Sha256TokenService();
 // Casos de uso que se usan en más de un controlador
 const sessionIssuer = new SessionIssuer(sessions, tokens, clock);
 const authenticateSession = new AuthenticateSession(sessions, tokens, clock);
-const createTimeBlock = new CreateTimeBlock(timeBlocks);
+const createTimeBlock = new CreateTimeBlock(timeBlocks, barbers);
 
 const presenter = new ApiPresenter(timeZone);
 
@@ -94,7 +90,7 @@ const app = createApp({
       presenter,
     ),
     availability: new AvailabilityController(
-      new GetAvailability(services, barbers, schedules, timeBlocks, appointments, clock, timeZone, config.slotIntervalMin),
+      new GetAvailability(services, barbers, timeBlocks, appointments, clock, timeZone, config.slotIntervalMin),
       presenter,
     ),
     appointments: new AppointmentController(
@@ -109,7 +105,7 @@ const app = createApp({
     ),
     accounts: new AccountController(
       new Login(barbers, clients, hasher, sessionIssuer),
-      new RegisterClient(barbers, clients, hasher, sessionIssuer, config.welcomeDiscountPct),
+      new RegisterClient(barbers, clients, hasher, sessionIssuer, clock, config.welcomeDiscountPct),
       new UpdateProfile(clients, barbers),
       new Logout(sessions),
       new GetActiveAppointment(appointments, clock),
@@ -129,9 +125,9 @@ const app = createApp({
     team: new TeamController(new ListTeam(barbers), presenter),
     serviceAdmin: new ServiceAdminController(
       new ListServicesForAdmin(services),
-      new CreateService(services),
-      new UpdateService(services),
-      new UploadImage(images),
+      new CreateService(services, clock),
+      new UpdateService(services, clock),
+      new UploadImage(images, clock),
       presenter,
     ),
   },

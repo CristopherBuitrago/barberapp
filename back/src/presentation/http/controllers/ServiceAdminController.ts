@@ -1,16 +1,17 @@
-import type { RequestHandler } from "express";
+import type { RequestHandler, Response } from "express";
 import type { UploadImage } from "../../../application/use-cases/images/UploadImage.js";
 import type { CreateService } from "../../../application/use-cases/services/CreateService.js";
 import type { ListServicesForAdmin } from "../../../application/use-cases/services/ListServicesForAdmin.js";
 import type { UpdateService } from "../../../application/use-cases/services/UpdateService.js";
-import type { ServiceData } from "../../../domain/entities/Service.js";
+import type { Barber } from "../../../domain/entities/Barber.js";
+import type { EditableServiceFields } from "../../../domain/entities/Service.js";
 import { requiredSession } from "../middlewares/auth.js";
 import type { ApiPresenter } from "../presenters/ApiPresenter.js";
 import { idParam, serviceBody } from "../validators/schemas.js";
 
 type ServiceBody = Partial<ReturnType<typeof serviceBody.parse>>;
 
-function toServiceData(body: ServiceBody): Partial<ServiceData> {
+function toFields(body: ServiceBody): Partial<EditableServiceFields> {
   return {
     name: body.nombre,
     description: body.descripcion,
@@ -31,11 +32,11 @@ export class ServiceAdminController {
     private readonly presenter: ApiPresenter,
   ) {}
 
-  /** Id de quien está haciendo el cambio, queda guardado en el servicio */
-  private authorId(res: Parameters<RequestHandler>[1]): number {
-    const session = requiredSession(res);
-    if (session.role === "CLIENTE") throw new Error("Esta ruta debería ir detrás de requireTeam");
-    return session.barber.id;
+  /** El admin que está haciendo el cambio, queda guardado en el servicio */
+  private author(res: Response): Barber {
+    const barber = requiredSession(res).barber;
+    if (!barber) throw new Error("Esta ruta debería ir detrás de requireTeam");
+    return barber;
   }
 
   list: RequestHandler = async (_req, res) => {
@@ -44,18 +45,17 @@ export class ServiceAdminController {
   };
 
   create: RequestHandler = async (req, res) => {
-    const data = toServiceData(serviceBody.parse(req.body)) as ServiceData;
-    const service = await this.createService.execute({ data, authorId: this.authorId(res) });
+    const fields = toFields(serviceBody.parse(req.body)) as EditableServiceFields;
+    const service = await this.createService.execute({ fields, author: this.author(res) });
     res.status(201).json(this.presenter.serviceForAdmin(service));
   };
 
   /** Sirve para editar y también para ocultar o mostrar */
   update: RequestHandler = async (req, res) => {
-    const data = toServiceData(serviceBody.partial().parse(req.body));
     const service = await this.updateService.execute({
       serviceId: idParam.parse(req.params).id,
-      data,
-      authorId: this.authorId(res),
+      fields: toFields(serviceBody.partial().parse(req.body)),
+      author: this.author(res),
     });
     res.json(this.presenter.serviceForAdmin(service));
   };
@@ -66,6 +66,6 @@ export class ServiceAdminController {
       type: req.header("content-type") ?? "",
       data: Buffer.isBuffer(req.body) ? new Uint8Array(req.body) : null,
     });
-    res.status(201).json({ url: `/api/imagenes/${image.id}` });
+    res.status(201).json({ url: image.url });
   };
 }

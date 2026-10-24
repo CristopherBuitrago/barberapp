@@ -4,22 +4,22 @@
  */
 import type { Contact } from "../../../application/dtos/contacts.js";
 import type { Profile } from "../../../application/dtos/accounts.js";
-import { finalPrice, type AppointmentDetail } from "../../../domain/entities/Appointment.js";
-import type { BarberSummary, BarberWithSchedules } from "../../../domain/entities/Barber.js";
-import type { Service, ServiceWithAuthors } from "../../../domain/entities/Service.js";
-import type { TimeBlock, TimeBlockWithBarber } from "../../../domain/entities/TimeBlock.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
+import type { Barber } from "../../../domain/entities/Barber.js";
+import type { Service } from "../../../domain/entities/Service.js";
+import type { TimeBlock } from "../../../domain/entities/TimeBlock.js";
 import type { AvailableSlot } from "../../../domain/services/availability.js";
 import type { TimeZone } from "../../../domain/value-objects/TimeZone.js";
 
 export class ApiPresenter {
   constructor(private readonly timeZone: TimeZone) {}
 
-  barber(barber: BarberSummary) {
+  barber(barber: Barber) {
     return { id: barber.id, nombre: barber.name };
   }
 
   /** Para el panel. La contraseña nunca sale, ni siquiera su hash */
-  teamMember(barber: BarberWithSchedules) {
+  teamMember(barber: Barber) {
     return {
       id: barber.id,
       nombre: barber.name,
@@ -45,14 +45,14 @@ export class ApiPresenter {
       precio: service.price,
       imagenUrl: service.imageUrl,
       activo: service.active,
-      creadoPorId: service.createdById,
-      actualizadoPorId: service.updatedById,
+      creadoPorId: service.createdBy?.id ?? null,
+      actualizadoPorId: service.updatedBy?.id ?? null,
       creadoEn: service.createdAt,
       actualizadoEn: service.updatedAt,
     };
   }
 
-  serviceForAdmin(service: ServiceWithAuthors) {
+  serviceForAdmin(service: Service) {
     return {
       ...this.service(service),
       creadoPor: service.createdBy && this.barber(service.createdBy),
@@ -60,7 +60,7 @@ export class ApiPresenter {
     };
   }
 
-  appointment(appointment: AppointmentDetail) {
+  appointment(appointment: Appointment) {
     return {
       id: appointment.id,
       inicio: this.timeZone.toLocalIso(appointment.start),
@@ -69,7 +69,7 @@ export class ApiPresenter {
       canal: appointment.channel,
       precio: appointment.price,
       descuentoPct: appointment.discountPct,
-      precioFinal: finalPrice(appointment),
+      precioFinal: appointment.finalPrice,
       notas: appointment.notes,
       barbero: this.barber(appointment.barber),
       servicio: {
@@ -88,14 +88,14 @@ export class ApiPresenter {
   timeBlock(block: TimeBlock) {
     return {
       id: block.id,
-      barberoId: block.barberId,
+      barberoId: block.barber.id,
       inicio: this.timeZone.toLocalIso(block.start),
       fin: this.timeZone.toLocalIso(block.end),
       motivo: block.reason,
     };
   }
 
-  timeBlockWithBarber(block: TimeBlockWithBarber) {
+  timeBlockWithBarber(block: TimeBlock) {
     return { ...this.timeBlock(block), barbero: this.barber(block.barber) };
   }
 
@@ -110,7 +110,7 @@ export class ApiPresenter {
       cliente: contact.client && {
         nombre: contact.client.name,
         registrado: contact.client.registered,
-        descuentoPendientePct: contact.client.pendingDiscountPct,
+        descuentoPendientePct: contact.pendingDiscountPct,
       },
       citasProximas: contact.upcomingAppointments.map((a) => this.appointment(a)),
     };

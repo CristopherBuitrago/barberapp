@@ -120,7 +120,7 @@ Arquitectura limpia por capas (no por funcionalidad). Cada capa solo conoce a la
 ```
 back/src/
 ├── domain/              reglas del negocio, sin Express ni Prisma
-│   ├── entities/        Appointment, Barber, Client, Service, TimeBlock, Session, Image
+│   ├── entities/        clases con get, set y relaciones (Appointment, Barber, Client, Service...)
 │   ├── repositories/    interfaces (AppointmentRepository, ServiceRepository...)
 │   ├── services/        cálculo de horas libres
 │   ├── value-objects/   teléfono y zona horaria
@@ -141,6 +141,14 @@ back/src/
 │   └── presenters/      arman el JSON en español que esperan el front y el agente
 └── main.ts              arma todo a mano y arranca el servidor
 ```
+
+### Entidades
+
+Cada entidad es una clase con sus atributos privados, `get` y `set`. Los `set` validan (un precio negativo o un nombre vacío lanzan `RuleViolationError`) y las reglas del negocio son métodos de la clase: `appointment.cancel()`, `appointment.reschedule()`, `client.register()`, `client.useWelcomeDiscount()`, `service.update()`, `session.isValidAt()`.
+
+Las relaciones son objetos: una `Appointment` tiene su `Client`, su `Barber` y su `Service`, un `Barber` tiene sus `WorkSchedule`, un `Service` tiene el `Barber` que lo creó y el que lo cambió, un `TimeBlock` tiene su `Barber` y una `Session` tiene su dueño (`Client` o `Barber`).
+
+Se crean con un método de fábrica (`Appointment.schedule()`, `Client.create()`, `Service.create()`...) y los repositorios las arman desde la base con `restore()`. Una entidad nueva no tiene id hasta que se guarda con el `save()` de su repositorio.
 
 ### Pruebas
 

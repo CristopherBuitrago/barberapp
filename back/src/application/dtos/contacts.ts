@@ -1,11 +1,8 @@
-import type { AppointmentDetail } from "../../domain/entities/Appointment.js";
-import type { BarberSummary } from "../../domain/entities/Barber.js";
+import type { Appointment } from "../../domain/entities/Appointment.js";
+import type { Barber } from "../../domain/entities/Barber.js";
+import type { Client } from "../../domain/entities/Client.js";
 
 /** Quién le escribe al agente de WhatsApp. */
 export type Contact =
-  | { kind: "barber"; barber: BarberSummary }
-  | {
-      kind: "client";
-      client: { name: string; registered: boolean; pendingDiscountPct: number } | null;
-      upcomingAppointments: AppointmentDetail[];
-    };
+  | { kind: "barber"; barber: Barber }
+  | { kind: "client"; client: Client | null; pendingDiscountPct: number; upcomingAppointments: Appointment[] };

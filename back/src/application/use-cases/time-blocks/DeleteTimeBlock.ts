@@ -5,6 +5,8 @@ export class DeleteTimeBlock {
   constructor(private readonly timeBlocks: TimeBlockRepository) {}
 
   async execute(timeBlockId: number): Promise<void> {
-    if (!(await this.timeBlocks.delete(timeBlockId))) throw new NotFoundError("Bloqueo no encontrado");
+    const block = await this.timeBlocks.findById(timeBlockId);
+    if (!block) throw new NotFoundError("Bloqueo no encontrado");
+    await this.timeBlocks.delete(block);
   }
 }

@@ -11,46 +11,18 @@ export class PrismaClientRepository implements ClientRepository {
     return row && toClient(row);
   }
 
-  async upsertForBooking(data: { phone: string; name: string; acceptsDataPolicy: boolean }): Promise<Client> {
-    const row = await this.db.cliente.upsert({
-      where: { telefono: data.phone },
-      create: { telefono: data.phone, nombre: data.name, aceptaDatos: data.acceptsDataPolicy },
-      // La autorización de datos solo se marca, nunca se quita al volver a reservar
-      update: { nombre: data.name, ...(data.acceptsDataPolicy ? { aceptaDatos: true } : {}) },
-    });
-    return toClient(row);
-  }
-
-  async saveRegistration(data: {
-    phone: string;
-    name: string;
-    passwordHash: string;
-    birthDate: Date | null;
-  }): Promise<Client> {
-    const fields = {
-      nombre: data.name,
-      registrado: true,
-      aceptaDatos: true,
-      claveHash: data.passwordHash,
-      fechaNacimiento: data.birthDate,
+  async save(client: Client): Promise<Client> {
+    const data = {
+      nombre: client.name,
+      fechaNacimiento: client.birthDate,
+      registrado: client.registered,
+      aceptaDatos: client.acceptsDataPolicy,
+      descuentoBienvenidaUsado: client.welcomeDiscountUsed,
+      claveHash: client.passwordHash,
     };
-    const row = await this.db.cliente.upsert({
-      where: { telefono: data.phone },
-      create: { telefono: data.phone, ...fields },
-      update: fields,
-    });
+    const row = client.isNew
+      ? await this.db.cliente.create({ data: { ...data, telefono: client.phone, creadoEn: client.createdAt } })
+      : await this.db.cliente.update({ where: { id: client.id }, data });
     return toClient(row);
-  }
-
-  async updateProfile(id: number, data: { name: string; birthDate?: Date | null }): Promise<Client> {
-    const row = await this.db.cliente.update({
-      where: { id },
-      data: { nombre: data.name, ...(data.birthDate !== undefined && { fechaNacimiento: data.birthDate }) },
-    });
-    return toClient(row);
-  }
-
-  async markWelcomeDiscountUsed(id: number): Promise<void> {
-    await this.db.cliente.update({ where: { id }, data: { descuentoBienvenidaUsado: true } });
   }
 }

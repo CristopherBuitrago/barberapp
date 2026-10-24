@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { TransactionalRepositories, TransactionRunner } from "../../../application/ports/TransactionRunner.js";
 import { PrismaAppointmentRepository } from "./PrismaAppointmentRepository.js";
-import { PrismaBarberRepository, PrismaWorkScheduleRepository } from "./PrismaBarberRepository.js";
+import { PrismaBarberRepository } from "./PrismaBarberRepository.js";
 import { PrismaClientRepository } from "./PrismaClientRepository.js";
 import { PrismaTimeBlockRepository } from "./PrismaTimeBlockRepository.js";
 
@@ -23,7 +23,6 @@ export class PrismaTransactionRunner implements TransactionRunner {
               appointments: new PrismaAppointmentRepository(tx),
               barbers: new PrismaBarberRepository(tx),
               clients: new PrismaClientRepository(tx),
-              schedules: new PrismaWorkScheduleRepository(tx),
               timeBlocks: new PrismaTimeBlockRepository(tx),
             }),
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

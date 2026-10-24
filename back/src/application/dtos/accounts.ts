@@ -1,4 +1,4 @@
-import type { AuthSession, Role } from "../../domain/entities/Session.js";
+import type { Role, Session } from "../../domain/entities/Session.js";
 
 export interface LoginInput {
   phone: string;
@@ -14,7 +14,7 @@ export interface RegisterClientInput {
 }
 
 export interface UpdateProfileInput {
-  session: AuthSession;
+  session: Session;
   name: string;
   /** "YYYY-MM-DD", null para borrarla, undefined para dejarla igual. Solo aplica a clientes */
   birthDate?: string | null;

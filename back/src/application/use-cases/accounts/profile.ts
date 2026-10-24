@@ -1,24 +1,23 @@
-import type { Barber } from "../../../domain/entities/Barber.js";
+import { Barber } from "../../../domain/entities/Barber.js";
 import type { Client } from "../../../domain/entities/Client.js";
-import { roleOf, type AuthSession } from "../../../domain/entities/Session.js";
+import type { Session } from "../../../domain/entities/Session.js";
 import type { Profile } from "../../dtos/accounts.js";
 
-export function clientProfile(client: Client): Profile {
+/** El perfil de un cliente o de alguien del equipo. El equipo no tiene fecha de nacimiento. */
+export function profileOf(person: Client | Barber): Profile {
+  if (person instanceof Barber) {
+    return { role: person.role, name: person.name, phone: person.phone ?? "", birthDate: null };
+  }
   return {
     role: "CLIENTE",
-    name: client.name,
-    phone: client.phone,
-    birthDate: client.birthDate ? client.birthDate.toISOString().slice(0, 10) : null,
+    name: person.name,
+    phone: person.phone,
+    birthDate: person.birthDate ? person.birthDate.toISOString().slice(0, 10) : null,
   };
 }
 
-/** El equipo no tiene fecha de nacimiento en el perfil. */
-export function teamProfile(barber: Barber): Profile {
-  return { role: roleOf(barber), name: barber.name, phone: barber.phone ?? "", birthDate: null };
-}
-
-export function profileOf(session: AuthSession): Profile {
-  return session.role === "CLIENTE" ? clientProfile(session.client) : teamProfile(session.barber);
+export function sessionProfile(session: Session): Profile {
+  return profileOf(session.owner);
 }
 
 /** "YYYY-MM-DD" a medianoche UTC, que es como se guarda la fecha de nacimiento. */

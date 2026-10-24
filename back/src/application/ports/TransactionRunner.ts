@@ -1,5 +1,5 @@
 import type { AppointmentRepository } from "../../domain/repositories/AppointmentRepository.js";
-import type { BarberRepository, WorkScheduleRepository } from "../../domain/repositories/BarberRepository.js";
+import type { BarberRepository } from "../../domain/repositories/BarberRepository.js";
 import type { ClientRepository } from "../../domain/repositories/ClientRepository.js";
 import type { TimeBlockRepository } from "../../domain/repositories/TimeBlockRepository.js";
 
@@ -8,7 +8,6 @@ export interface TransactionalRepositories {
   appointments: AppointmentRepository;
   barbers: BarberRepository;
   clients: ClientRepository;
-  schedules: WorkScheduleRepository;
   timeBlocks: TimeBlockRepository;
 }
 

@@ -1,21 +1,16 @@
-import type { BarberSummary, WorkSchedule } from "../entities/Barber.js";
+import type { Barber } from "../entities/Barber.js";
+import type { WorkSchedule } from "../entities/WorkSchedule.js";
 import { TimeZone, addMinutes, overlaps } from "../value-objects/TimeZone.js";
 
+/** Algo que ocupa al barbero un rato: una cita o un bloqueo. */
 export interface BusyPeriod {
   start: Date;
   end: Date;
 }
 
-/** Lo que se sabe de un barbero para un día: su jornada y lo que ya tiene ocupado. */
-export interface BarberDay {
-  barber: BarberSummary;
-  schedules: WorkSchedule[];
-  busy: BusyPeriod[];
-}
-
 export interface AvailableSlot {
   start: Date;
-  barbers: BarberSummary[];
+  barbers: Barber[];
 }
 
 /**
@@ -29,13 +24,13 @@ export function findFreeSlots(params: {
   /** No se ofrecen horas que empiecen antes de esto */
   earliestStart: Date;
   timeZone: TimeZone;
-  barbers: BarberDay[];
+  barbers: { barber: Barber; busy: BusyPeriod[] }[];
 }): AvailableSlot[] {
   const { date, durationMin, intervalMin, earliestStart, timeZone } = params;
   const byStart = new Map<number, AvailableSlot>();
 
-  for (const { barber, schedules, busy } of params.barbers) {
-    for (const schedule of schedules) {
+  for (const { barber, busy } of params.barbers) {
+    for (const schedule of barber.schedulesOn(TimeZone.weekday(date))) {
       const dayEnd = timeZone.toInstant(date, schedule.endTime);
       for (
         let start = timeZone.toInstant(date, schedule.startTime);
@@ -58,7 +53,7 @@ export function findFreeSlots(params: {
 
 /** Si [start, end) cabe completo dentro de alguna de las jornadas de ese día. */
 export function fitsInSchedule(
-  schedules: WorkSchedule[],
+  schedules: readonly WorkSchedule[],
   date: string,
   timeZone: TimeZone,
   start: Date,

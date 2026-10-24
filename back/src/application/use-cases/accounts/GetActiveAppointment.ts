@@ -1,5 +1,5 @@
-import type { AppointmentDetail } from "../../../domain/entities/Appointment.js";
-import type { AuthSession } from "../../../domain/entities/Session.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
+import type { Session } from "../../../domain/entities/Session.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import type { Clock } from "../../ports/Clock.js";
 
@@ -10,8 +10,8 @@ export class GetActiveAppointment {
     private readonly clock: Clock,
   ) {}
 
-  async execute(session: AuthSession): Promise<AppointmentDetail | null> {
-    if (session.role !== "CLIENTE") return null;
+  async execute(session: Session): Promise<Appointment | null> {
+    if (!session.client) return null;
     const [next] = await this.appointments.findUpcomingByClientPhone(session.client.phone, this.clock.now());
     return next ?? null;
   }

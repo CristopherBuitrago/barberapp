@@ -1,13 +1,18 @@
-import type { TimeBlock } from "../../../domain/entities/TimeBlock.js";
-import { RuleViolationError } from "../../../domain/errors/DomainError.js";
+import { TimeBlock } from "../../../domain/entities/TimeBlock.js";
+import { NotFoundError } from "../../../domain/errors/DomainError.js";
+import type { BarberRepository } from "../../../domain/repositories/BarberRepository.js";
 import type { TimeBlockRepository } from "../../../domain/repositories/TimeBlockRepository.js";
 
 /** Bloquea un rato de un barbero, desde el panel o por WhatsApp en modo barbero. */
 export class CreateTimeBlock {
-  constructor(private readonly timeBlocks: TimeBlockRepository) {}
+  constructor(
+    private readonly timeBlocks: TimeBlockRepository,
+    private readonly barbers: BarberRepository,
+  ) {}
 
-  execute(input: { barberId: number; start: Date; end: Date; reason?: string }): Promise<TimeBlock> {
-    if (input.end <= input.start) throw new RuleViolationError("El fin debe ser después del inicio");
-    return this.timeBlocks.create({ ...input, reason: input.reason ?? "" });
+  async execute(input: { barberId: number; start: Date; end: Date; reason?: string }): Promise<TimeBlock> {
+    const barber = await this.barbers.findById(input.barberId);
+    if (!barber) throw new NotFoundError("Barbero no encontrado");
+    return this.timeBlocks.save(TimeBlock.create({ barber, start: input.start, end: input.end, reason: input.reason }));
   }
 }

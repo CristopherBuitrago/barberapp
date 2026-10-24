@@ -1,10 +1,10 @@
-import type { TimeBlock, TimeBlockWithBarber } from "../entities/TimeBlock.js";
+import type { TimeBlock } from "../entities/TimeBlock.js";
 
+/** Los bloqueos vienen con su barbero. */
 export interface TimeBlockRepository {
-  create(data: { barberId: number; start: Date; end: Date; reason: string }): Promise<TimeBlock>;
-  /** Los que se cruzan con [from, to) */
-  findOverlapping(from: Date, to: Date, barberIds: number[]): Promise<TimeBlock[]>;
-  findOverlappingWithBarber(from: Date, to: Date): Promise<TimeBlockWithBarber[]>;
-  /** Devuelve false si no existía */
-  delete(id: number): Promise<boolean>;
+  findById(id: number): Promise<TimeBlock | null>;
+  /** Los que se cruzan con [from, to), de todos o solo de esos barberos */
+  findOverlapping(from: Date, to: Date, barberIds?: number[]): Promise<TimeBlock[]>;
+  save(block: TimeBlock): Promise<TimeBlock>;
+  delete(block: TimeBlock): Promise<void>;
 }

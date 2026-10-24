@@ -1,7 +1,7 @@
 import type { Request, RequestHandler, Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 import type { AuthenticateSession } from "../../../application/use-cases/accounts/AuthenticateSession.js";
-import type { AuthSession } from "../../../domain/entities/Session.js";
+import type { Session } from "../../../domain/entities/Session.js";
 
 /** Compara dos claves sin dar pistas por lo que se demora. */
 function safeEqual(a: string | undefined, b: string): boolean {
@@ -20,12 +20,12 @@ export function readSession(authenticate: AuthenticateSession): RequestHandler {
   };
 }
 
-export function sessionOf(res: Response): AuthSession | undefined {
-  return (res.locals.session as AuthSession | null | undefined) ?? undefined;
+export function sessionOf(res: Response): Session | undefined {
+  return (res.locals.session as Session | null | undefined) ?? undefined;
 }
 
 /** Para las rutas que siempre van detrás de requireSession o requireTeam. */
-export function requiredSession(res: Response): AuthSession {
+export function requiredSession(res: Response): Session {
   const session = sessionOf(res);
   if (!session) throw new Error("Esta ruta debería ir detrás de requireSession");
   return session;
@@ -42,7 +42,7 @@ export const requireSession: RequestHandler = (_req, res, next) => {
 /** Solo barberos y admin, o sea el panel. */
 export const requireTeam: RequestHandler = (_req, res, next) => {
   const session = sessionOf(res);
-  if (!session || session.role === "CLIENTE") {
+  if (!session?.isTeam) {
     res.status(401).json({ error: "Inicia sesión con una cuenta del equipo" });
     return;
   }

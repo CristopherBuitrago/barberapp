@@ -27,21 +27,14 @@ export class SaveTeamAccount {
     if (input.password.length < MIN_PASSWORD_LENGTH) {
       throw new RuleViolationError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
     }
-    const found = await this.barbers.findByName(input.name);
-    if (!found) {
-      const names = (await this.barbers.findAllWithSchedules()).map((b) => b.name);
-      throw new NotFoundError(
-        `No hay un barbero llamado "${input.name}". Barberos: ${names.join(", ") || "(ninguno)"}`,
-      );
+    const barber = await this.barbers.findByName(input.name);
+    if (!barber) {
+      const names = (await this.barbers.findAll()).map((b) => b.name);
+      throw new NotFoundError(`No hay un barbero llamado "${input.name}". Barberos: ${names.join(", ") || "(ninguno)"}`);
     }
-    const phone = normalizePhone(input.phone);
     // Si ese teléfono también tiene cuenta de cliente, con él se va a entrar al panel
-    const client = await this.clients.findByPhone(phone);
-    const barber = await this.barbers.setAccount(found.id, {
-      phone,
-      passwordHash: await this.hasher.hash(input.password),
-      isAdmin: input.isAdmin,
-    });
-    return { barber, alsoClientAccount: !!client?.passwordHash };
+    const client = await this.clients.findByPhone(normalizePhone(input.phone));
+    barber.setAccount(input.phone, await this.hasher.hash(input.password), input.isAdmin);
+    return { barber: await this.barbers.save(barber), alsoClientAccount: !!client?.hasAccount };
   }
 }

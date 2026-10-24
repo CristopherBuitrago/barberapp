@@ -4,9 +4,10 @@ import { CancelAppointment } from "../../src/application/use-cases/appointments/
 import { CreateAppointment } from "../../src/application/use-cases/appointments/CreateAppointment.js";
 import { RescheduleAppointment } from "../../src/application/use-cases/appointments/RescheduleAppointment.js";
 import { GetAvailability } from "../../src/application/use-cases/availability/GetAvailability.js";
-import { BookingChannel, type BookingChannel as Channel } from "../../src/domain/entities/Appointment.js";
+import { BookingChannel } from "../../src/domain/entities/Appointment.js";
 import type { Barber } from "../../src/domain/entities/Barber.js";
 import type { Service } from "../../src/domain/entities/Service.js";
+import { TimeBlock } from "../../src/domain/entities/TimeBlock.js";
 import { ConflictError, NotFoundError, RuleViolationError } from "../../src/domain/errors/DomainError.js";
 import { TimeZone } from "../../src/domain/value-objects/TimeZone.js";
 import { FixedClock, memoryRepositories } from "./fakes.js";
@@ -25,8 +26,8 @@ let haircut: Service;
 beforeEach(() => {
   repos = memoryRepositories();
   clock = new FixedClock(at("08:00"));
-  diego = repos.store.addBarber({ name: "Diego" }, { startTime: "09:00", endTime: "18:00" });
-  andres = repos.store.addBarber({ name: "Andrés" }, { startTime: "09:00", endTime: "18:00" });
+  diego = repos.store.addBarber("Diego");
+  andres = repos.store.addBarber("Andrés");
   haircut = repos.store.addService({ name: "Corte", durationMin: 30, price: 20000 });
   create = new CreateAppointment(repos.services, repos.transactions, clock, tz, 10);
 });
@@ -37,18 +38,20 @@ function book(overrides: Partial<Parameters<CreateAppointment["execute"]>[0]> = 
     barberId: diego.id,
     start: at("10:00"),
     client: { name: "Laura", phone: "3101234567", acceptsDataPolicy: true },
-    channel: BookingChannel.Web as Channel,
+    channel: BookingChannel.Web,
     ...overrides,
   });
 }
 
 describe("agendar cita", () => {
-  it("guarda la cita con el precio del servicio y el teléfono normalizado", async () => {
+  it("devuelve la cita guardada con su cliente, su barbero y su servicio", async () => {
     const appointment = await book();
+    assert.equal(appointment.isNew, false);
     assert.equal(appointment.client.phone, "573101234567");
+    assert.ok(appointment.barber.equals(diego));
+    assert.ok(appointment.service.equals(haircut));
     assert.equal(appointment.price, 20000);
-    assert.equal(appointment.discountPct, 0);
-    assert.equal(appointment.end.getTime(), at("10:30").getTime());
+    assert.equal(repos.store.appointments.size, 1);
   });
 
   it("en la web pide aceptar los datos, por WhatsApp no", async () => {
@@ -59,13 +62,20 @@ describe("agendar cita", () => {
   });
 
   it("con sesión de cliente usa los datos de la cuenta y no los del formulario", async () => {
-    const account = repos.store.addClient({ name: "Sofía", phone: "573209998888", registered: true, acceptsDataPolicy: true });
+    const account = repos.store.addClient({ name: "Sofía", phone: "573209998888", registered: true });
     const appointment = await book({
       client: { name: "Otro nombre", phone: "3000000000", acceptsDataPolicy: false },
       sessionClient: account,
     });
-    assert.equal(appointment.client.id, account.id);
+    assert.ok(appointment.client.equals(account));
     assert.equal(appointment.client.name, "Sofía");
+  });
+
+  it("si el cliente ya existía le actualiza el nombre en vez de crear otro", async () => {
+    repos.store.addClient({ name: "Lau", phone: "573101234567" });
+    await book();
+    assert.equal(repos.store.clients.size, 1);
+    assert.equal([...repos.store.clients.values()][0].name, "Laura");
   });
 
   it("no deja reservar en el pasado ni un servicio oculto", async () => {
@@ -84,7 +94,7 @@ describe("agendar cita", () => {
   });
 
   it("respeta los bloqueos y la jornada", async () => {
-    await repos.timeBlocks.create({ barberId: diego.id, start: at("10:00"), end: at("11:00"), reason: "Almuerzo" });
+    await repos.timeBlocks.save(TimeBlock.create({ barber: diego, start: at("10:00"), end: at("11:00"), reason: "Almuerzo" }));
     await assert.rejects(book(), ConflictError);
     await assert.rejects(book({ start: at("17:45") }), ConflictError);
   });
@@ -92,7 +102,7 @@ describe("agendar cita", () => {
   it("sin barbero elegido le asigna el primero libre", async () => {
     await book();
     const second = await book({ barberId: undefined, client: { name: "Pedro", phone: "3105550000", acceptsDataPolicy: true } });
-    assert.equal(second.barber.id, andres.id);
+    assert.ok(second.barber.equals(andres));
     await assert.rejects(
       book({ barberId: undefined, client: { name: "Ana", phone: "3102220000", acceptsDataPolicy: true } }),
       new ConflictError("Esa hora ya no está disponible"),
@@ -106,32 +116,34 @@ describe("agendar cita", () => {
     assert.equal(fromPanel.channel, "PANEL");
   });
 
-  it("el descuento de bienvenida se usa una sola vez", async () => {
+  it("el descuento de bienvenida se usa una sola vez y queda guardado", async () => {
     repos.store.addClient({ name: "Nuevo", phone: "573157778888", registered: true });
     const client = { name: "Nuevo", phone: "3157778888", acceptsDataPolicy: true };
     const first = await book({ client, channel: BookingChannel.Panel });
     const second = await book({ client, start: at("12:00"), channel: BookingChannel.Panel });
     assert.equal(first.discountPct, 10);
+    assert.equal(first.finalPrice, 18000);
     assert.equal(second.discountPct, 0);
   });
 });
 
 describe("cancelar y reprogramar", () => {
-  it("solo el dueño puede cancelar, y una vez", async () => {
+  it("solo el dueño puede cancelar, una vez, y queda guardado", async () => {
     const appointment = await book();
     const cancel = new CancelAppointment(repos.appointments);
     await assert.rejects(cancel.execute({ appointmentId: appointment.id, phone: "3000000000" }), NotFoundError);
-    const cancelled = await cancel.execute({ appointmentId: appointment.id, phone: "3101234567" });
-    assert.equal(cancelled.status, "CANCELADA");
+    await cancel.execute({ appointmentId: appointment.id, phone: "3101234567" });
+    assert.equal(repos.store.appointments.get(appointment.id)?.status, "CANCELADA");
     await assert.rejects(cancel.execute({ appointmentId: appointment.id, phone: "3101234567" }), ConflictError);
   });
 
   it("reprograma dentro de su mismo espacio porque la cita no choca consigo misma", async () => {
     const appointment = await book();
     const reschedule = new RescheduleAppointment(repos.appointments, repos.transactions, clock, tz);
-    const moved = await reschedule.execute({ appointmentId: appointment.id, phone: "3101234567", start: at("10:15") });
-    assert.equal(moved.start.getTime(), at("10:15").getTime());
-    assert.equal(moved.end.getTime(), at("10:45").getTime());
+    await reschedule.execute({ appointmentId: appointment.id, phone: "3101234567", start: at("10:15") });
+    const saved = repos.store.appointments.get(appointment.id)!;
+    assert.equal(saved.start.getTime(), at("10:15").getTime());
+    assert.equal(saved.end.getTime(), at("10:45").getTime());
   });
 
   it("no reprograma a una hora ocupada", async () => {
@@ -146,18 +158,8 @@ describe("cancelar y reprogramar", () => {
 });
 
 describe("disponibilidad", () => {
-  function availability() {
-    return new GetAvailability(
-      repos.services,
-      repos.barbers,
-      repos.schedules,
-      repos.timeBlocks,
-      repos.appointments,
-      clock,
-      tz,
-      30,
-    );
-  }
+  const availability = () =>
+    new GetAvailability(repos.services, repos.barbers, repos.timeBlocks, repos.appointments, clock, tz, 30);
 
   it("no ofrece horas dentro de los próximos 15 minutos", async () => {
     clock.current = at("09:50");
@@ -169,12 +171,12 @@ describe("disponibilidad", () => {
     await book();
     const slots = await availability().execute({ serviceId: haircut.id, date: DAY });
     const tenAm = slots.find((s) => s.start.getTime() === at("10:00").getTime());
-    assert.deepEqual(tenAm?.barbers, [{ id: andres.id, name: "Andrés" }]);
+    assert.deepEqual(tenAm?.barbers.map((b) => b.name), ["Andrés"]);
   });
 
   it("los barberos inactivos no aparecen", async () => {
-    andres.active = false;
+    repos.store.barbers.get(andres.id)!.active = false;
     const slots = await availability().execute({ serviceId: haircut.id, date: DAY });
-    assert.ok(slots.every((s) => s.barbers.length === 1 && s.barbers[0].id === diego.id));
+    assert.ok(slots.every((s) => s.barbers.length === 1 && s.barbers[0].equals(diego)));
   });
 });

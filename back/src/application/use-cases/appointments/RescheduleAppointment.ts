@@ -1,4 +1,4 @@
-import { AppointmentStatus, type AppointmentDetail } from "../../../domain/entities/Appointment.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
 import { ConflictError, RuleViolationError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import { addMinutes, type TimeZone } from "../../../domain/value-objects/TimeZone.js";
@@ -17,18 +17,19 @@ export class RescheduleAppointment {
     private readonly timeZone: TimeZone,
   ) {}
 
-  async execute(input: RescheduleAppointmentInput): Promise<AppointmentDetail> {
-    const current = await findOwnedAppointment(this.appointments, input.appointmentId, input.phone);
-    if (current.status !== AppointmentStatus.Scheduled) throw new ConflictError("La cita ya no está activa");
+  async execute(input: RescheduleAppointmentInput): Promise<Appointment> {
+    const appointment = await findOwnedAppointment(this.appointments, input.appointmentId, input.phone);
+    if (!appointment.isScheduled) throw new ConflictError("La cita ya no está activa");
     if (input.start < this.clock.now()) throw new RuleViolationError("Esa hora ya pasó");
-    const end = addMinutes(input.start, current.service.durationMin);
+    const end = addMinutes(input.start, appointment.service.durationMin);
 
     return this.transactions.run(async (repos) => {
       // La misma cita no cuenta como ocupada, así se puede correr un rato dentro de su propio espacio
-      if (!(await isBarberFree(repos, this.timeZone, current.barberId, input.start, end, current.id))) {
+      if (!(await isBarberFree(repos, this.timeZone, appointment.barber, input.start, end, appointment.id))) {
         throw new ConflictError("Esa hora ya no está disponible con ese barbero");
       }
-      return repos.appointments.reschedule(current.id, input.start, end);
+      appointment.reschedule(input.start);
+      return repos.appointments.save(appointment);
     });
   }
 }

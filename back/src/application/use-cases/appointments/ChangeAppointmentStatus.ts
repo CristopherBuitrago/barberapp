@@ -1,4 +1,4 @@
-import type { AppointmentStatus } from "../../../domain/entities/Appointment.js";
+import type { Appointment, AppointmentStatus } from "../../../domain/entities/Appointment.js";
 import { NotFoundError } from "../../../domain/errors/DomainError.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 
@@ -6,9 +6,10 @@ import type { AppointmentRepository } from "../../../domain/repositories/Appoint
 export class ChangeAppointmentStatus {
   constructor(private readonly appointments: AppointmentRepository) {}
 
-  async execute(input: { appointmentId: number; status: AppointmentStatus }) {
-    if (!(await this.appointments.exists(input.appointmentId))) throw new NotFoundError("Cita no encontrada");
-    await this.appointments.updateStatus(input.appointmentId, input.status);
-    return { id: input.appointmentId, status: input.status };
+  async execute(input: { appointmentId: number; status: AppointmentStatus }): Promise<Appointment> {
+    const appointment = await this.appointments.findById(input.appointmentId);
+    if (!appointment) throw new NotFoundError("Cita no encontrada");
+    appointment.status = input.status;
+    return this.appointments.save(appointment);
   }
 }

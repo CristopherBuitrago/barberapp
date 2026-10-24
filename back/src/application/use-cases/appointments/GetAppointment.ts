@@ -1,4 +1,4 @@
-import type { AppointmentDetail } from "../../../domain/entities/Appointment.js";
+import type { Appointment } from "../../../domain/entities/Appointment.js";
 import type { AppointmentRepository } from "../../../domain/repositories/AppointmentRepository.js";
 import type { OwnerAppointmentInput } from "../../dtos/appointments.js";
 import { findOwnedAppointment } from "./ownedAppointment.js";
@@ -7,7 +7,7 @@ import { findOwnedAppointment } from "./ownedAppointment.js";
 export class GetAppointment {
   constructor(private readonly appointments: AppointmentRepository) {}
 
-  execute(input: OwnerAppointmentInput): Promise<AppointmentDetail> {
+  execute(input: OwnerAppointmentInput): Promise<Appointment> {
     return findOwnedAppointment(this.appointments, input.appointmentId, input.phone);
   }
 }

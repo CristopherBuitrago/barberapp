@@ -1,5 +1,6 @@
-import { BookingChannel, type AppointmentDetail } from "../../../domain/entities/Appointment.js";
-import { hasPendingWelcomeDiscount } from "../../../domain/entities/Client.js";
+import { Appointment, BookingChannel } from "../../../domain/entities/Appointment.js";
+import type { Barber } from "../../../domain/entities/Barber.js";
+import { Client } from "../../../domain/entities/Client.js";
 import { ConflictError, NotFoundError, RuleViolationError } from "../../../domain/errors/DomainError.js";
 import type { ServiceRepository } from "../../../domain/repositories/ServiceRepository.js";
 import { normalizePhone } from "../../../domain/value-objects/PhoneNumber.js";
@@ -19,14 +20,14 @@ export class CreateAppointment {
     private readonly welcomeDiscountPct: number,
   ) {}
 
-  async execute(input: CreateAppointmentInput): Promise<AppointmentDetail> {
+  async execute(input: CreateAppointmentInput): Promise<Appointment> {
     const isWeb = input.channel === BookingChannel.Web;
     // Con sesión de cliente la cita es suya, se usan su nombre y su teléfono y no los del formulario
-    const client =
+    const contact =
       isWeb && input.sessionClient
         ? { name: input.sessionClient.name, phone: input.sessionClient.phone, acceptsDataPolicy: true }
         : input.client;
-    if (isWeb && !client.acceptsDataPolicy) {
+    if (isWeb && !contact.acceptsDataPolicy) {
       throw new RuleViolationError("Debes aceptar el tratamiento de datos personales");
     }
 
@@ -36,44 +37,44 @@ export class CreateAppointment {
     const start = input.start;
     const end = addMinutes(start, service.durationMin);
     if (start < this.clock.now()) throw new RuleViolationError("Esa hora ya pasó");
-    const phone = normalizePhone(client.phone);
 
     return this.transactions.run(async (repos) => {
-      const barberId = await this.pickBarber(repos, input.barberId, start, end);
-
-      const saved = await repos.clients.upsertForBooking({
-        phone,
-        name: client.name,
-        acceptsDataPolicy: client.acceptsDataPolicy ?? false,
-      });
+      const barber = await this.pickBarber(repos, input.barberId, start, end);
+      let client = await this.findOrCreateClient(repos, contact);
 
       // Cada cliente puede tener una sola cita activa. El panel sí puede agendarle varias
       if (input.channel !== BookingChannel.Panel) {
-        const active = await repos.appointments.findActiveByClient(saved.id, this.clock.now());
+        const active = await repos.appointments.findActiveByClient(client, this.clock.now());
         if (active) {
           throw new ConflictError("Ya tienes una cita agendada. Cancélala o espera a que pase para reservar otra.");
         }
       }
 
       // El descuento de bienvenida se gasta en la primera cita después de registrarse
-      let discountPct = 0;
-      if (hasPendingWelcomeDiscount(saved)) {
-        discountPct = this.welcomeDiscountPct;
-        await repos.clients.markWelcomeDiscountUsed(saved.id);
-      }
+      const discountPct = client.useWelcomeDiscount(this.welcomeDiscountPct);
+      if (discountPct > 0) client = await repos.clients.save(client);
 
-      return repos.appointments.create({
-        clientId: saved.id,
-        barberId,
-        serviceId: service.id,
-        start,
-        end,
-        channel: input.channel,
-        price: service.price,
-        discountPct,
-        notes: input.notes ?? "",
-      });
+      const appointment = Appointment.schedule(
+        { client, barber, service, start, channel: input.channel, discountPct, notes: input.notes },
+        this.clock.now(),
+      );
+      return repos.appointments.save(appointment);
     });
+  }
+
+  /** El cliente de ese teléfono con el nombre al día, o uno nuevo si es la primera vez que reserva */
+  private async findOrCreateClient(
+    repos: TransactionalRepositories,
+    contact: { name: string; phone: string; acceptsDataPolicy?: boolean },
+  ): Promise<Client> {
+    const existing = await repos.clients.findByPhone(normalizePhone(contact.phone));
+    if (!existing) {
+      return repos.clients.save(Client.create(contact, this.clock.now()));
+    }
+    existing.name = contact.name;
+    // La autorización solo se marca, si no la manda ahora se queda como estaba
+    if (contact.acceptsDataPolicy) existing.acceptsDataPolicy = true;
+    return repos.clients.save(existing);
   }
 
   /** El barbero que pidieron si está libre, o si no pidieron ninguno el primero que lo esté. */
@@ -82,15 +83,16 @@ export class CreateAppointment {
     barberId: number | undefined,
     start: Date,
     end: Date,
-  ): Promise<number> {
+  ): Promise<Barber> {
     if (barberId) {
-      if (!(await isBarberFree(repos, this.timeZone, barberId, start, end))) {
+      const barber = await repos.barbers.findById(barberId);
+      if (!barber || !(await isBarberFree(repos, this.timeZone, barber, start, end))) {
         throw new ConflictError("Esa hora ya no está disponible con ese barbero");
       }
-      return barberId;
+      return barber;
     }
     for (const barber of await repos.barbers.findActive()) {
-      if (await isBarberFree(repos, this.timeZone, barber.id, start, end)) return barber.id;
+      if (await isBarberFree(repos, this.timeZone, barber, start, end)) return barber;
     }
     throw new ConflictError("Esa hora ya no está disponible");
   }

@@ -1,15 +1,9 @@
-import type { Barber } from "../entities/Barber.js";
-import type { Client } from "../entities/Client.js";
-import type { Session, SessionOwner } from "../entities/Session.js";
+import type { Session } from "../entities/Session.js";
 
-export interface SessionWithOwner extends Session {
-  client: Client | null;
-  barber: Barber | null;
-}
-
+/** Las sesiones vienen con su dueño, el cliente o el barbero. */
 export interface SessionRepository {
-  create(owner: SessionOwner, tokenHash: string, expiresAt: Date): Promise<void>;
-  findByTokenHash(tokenHash: string): Promise<SessionWithOwner | null>;
+  findByTokenHash(tokenHash: string): Promise<Session | null>;
+  save(session: Session): Promise<Session>;
   /** Si ya no existe no pasa nada */
-  delete(id: number): Promise<void>;
+  delete(session: Session): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { profileOf } from "../../../application/use-cases/accounts/profile.js";
+import { sessionProfile } from "../../../application/use-cases/accounts/profile.js";
 import type { GetActiveAppointment } from "../../../application/use-cases/accounts/GetActiveAppointment.js";
 import type { Login } from "../../../application/use-cases/accounts/Login.js";
 import type { Logout } from "../../../application/use-cases/accounts/Logout.js";
@@ -42,20 +42,21 @@ export class AccountController {
   };
 
   me: RequestHandler = (_req, res) => {
-    res.json(this.presenter.profile(profileOf(requiredSession(res))));
+    res.json(this.presenter.profile(sessionProfile(requiredSession(res))));
   };
 
   /** Los clientes editan nombre y fecha de nacimiento, el equipo solo el nombre */
   editMe: RequestHandler = async (req, res) => {
     const session = requiredSession(res);
-    const body =
-      session.role === "CLIENTE" ? clientProfileBody.parse(req.body) : { ...teamProfileBody.parse(req.body), fechaNacimiento: undefined };
+    const body = session.client
+      ? clientProfileBody.parse(req.body)
+      : { ...teamProfileBody.parse(req.body), fechaNacimiento: undefined };
     const profile = await this.updateProfile.execute({ session, name: body.nombre, birthDate: body.fechaNacimiento });
     res.json(this.presenter.profile(profile));
   };
 
   logout: RequestHandler = async (_req, res) => {
-    await this.logoutUseCase.execute(requiredSession(res).sessionId);
+    await this.logoutUseCase.execute(requiredSession(res));
     res.status(204).end();
   };
 
