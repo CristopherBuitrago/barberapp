@@ -113,7 +113,92 @@ Perfil según los frames `2010:8` (datos de la cuenta), `2010:69` (iniciar sesi�
 - Contraseñas con scrypt; la sesión es un token aleatorio de 30 días del que la base solo guarda el SHA-256.
 - El teléfono no se edita desde el perfil (es con lo que se inicia sesión).
 
+## Arquitectura del back
+
+Arquitectura limpia por capas (no por funcionalidad). Cada capa solo conoce a las de adentro: la presentación usa la aplicación, la aplicación usa el dominio y la infraestructura implementa lo que el dominio y la aplicación piden. El código va en inglés, y la base de datos y la API siguen en español para no romper el front ni el agente.
+
+```
+back/src/
+├── domain/              reglas del negocio, sin Express ni Prisma
+│   ├── entities/        clases con get, set y relaciones (Appointment, Barber, Client, Service...)
+│   ├── repositories/    interfaces (AppointmentRepository, ServiceRepository...)
+│   ├── services/        cálculo de horas libres
+│   ├── value-objects/   teléfono y zona horaria
+│   └── errors/          NotFoundError, ConflictError, RuleViolationError...
+├── application/
+│   ├── use-cases/       un caso de uso por archivo (CreateAppointment, Login, UpdateService...)
+│   ├── dtos/            lo que entra y sale de los casos de uso
+│   └── ports/           Clock, PasswordHasher, TokenService, TransactionRunner
+├── infrastructure/
+│   ├── persistence/     repositorios con Prisma y la transacción serializable
+│   ├── security/        scrypt y tokens de sesión
+│   └── config/          configuración y secretos
+├── presentation/http/
+│   ├── controllers/     reciben la petición, llaman el caso de uso y responden
+│   ├── routes/          las rutas de /api
+│   ├── middlewares/     sesión, equipo, admin, agente y errores
+│   ├── validators/      esquemas zod de lo que llega
+│   └── presenters/      arman el JSON en español que esperan el front y el agente
+└── main.ts              arma todo a mano y arranca el servidor
+```
+
+### Entidades
+
+Cada entidad es una clase con sus atributos privados, `get` y `set`. Los `set` validan (un precio negativo o un nombre vacío lanzan `RuleViolationError`) y las reglas del negocio son métodos de la clase: `appointment.cancel()`, `appointment.reschedule()`, `client.register()`, `client.useWelcomeDiscount()`, `service.update()`, `session.isValidAt()`.
+
+Las relaciones son objetos: una `Appointment` tiene su `Client`, su `Barber` y su `Service`, un `Barber` tiene sus `WorkSchedule`, un `Service` tiene el `Barber` que lo creó y el que lo cambió, un `TimeBlock` tiene su `Barber` y una `Session` tiene su dueño (`Client` o `Barber`).
+
+Se crean con un método de fábrica (`Appointment.schedule()`, `Client.create()`, `Service.create()`...) y los repositorios las arman desde la base con `restore()`. Una entidad nueva no tiene id hasta que se guarda con el `save()` de su repositorio.
+
+### Pruebas
+
+```bash
+cd back
+docker exec barberapp-postgres-1 psql -U barberia -d barberia -c "CREATE DATABASE barberia_test;"   # una sola vez
+DATABASE_URL="postgresql://barberia:barberia@localhost:5433/barberia_test?schema=public" npx prisma db push
+npm test            # todas
+npm run test:unit   # casos de uso y dominio con repositorios en memoria, sin base
+npm run test:api    # la API de verdad contra barberia_test
+```
+
+Las pruebas de la API borran y vuelven a cargar `barberia_test` cada vez, nunca tocan la base de desarrollo.
+
 ## API del back
+
+### Documentación (Swagger)
+
+Con el back corriendo:
+
+- **http://localhost:3000/api/docs**: pantalla de Swagger con cada ruta, lo que recibe, lo que responde y sus códigos de error. Se puede probar cada ruta desde ahí. Para las del panel, inicia sesión con `POST /api/cuenta/login`, copia el `token` y pégalo en **Authorize** (`bearerAuth`). Para las del agente, pon la clave en `agentKey`.
+- **http://localhost:3000/api/docs/openapi.json**: el documento OpenAPI 3.1, para importarlo en Postman o Insomnia.
+
+El documento está en `back/src/presentation/http/docs/openapi.ts`. Lo que se manda sale de los mismos esquemas zod que validan las peticiones. Lo que se responde está escrito ahí, así que si cambias un presenter hay que cambiarlo también en ese archivo. La prueba `tests/api/docs.test.ts` avisa si se documenta una ruta que no existe o una respuesta sin el sobre.
+
+### Formato de las respuestas
+
+Todas las respuestas tienen la misma forma. Las llaves del sobre van en inglés y los datos de adentro en español.
+
+```jsonc
+// Un objeto
+{ "success": true, "data": { "id": 5, "inicio": "2026-10-30T10:00:00-05:00", ... }, "error": null }
+
+// Una lista: siempre paginada con ?page=1&perPage=20 (máximo 100)
+{ "success": true, "data": [ ... ], "pagination": { "page": 1, "perPage": 20, "total": 57 }, "error": null }
+
+// Algo que no devuelve nada (cerrar sesión, borrar un bloqueo)
+{ "success": true, "data": null, "error": null }
+
+// Un error
+{ "success": false, "data": null, "error": { "code": "SLOT_TAKEN", "message": "Esa hora ya no está disponible", "details": null } }
+```
+
+- `code` es fijo y sirve para decidir en el front o el agente. `message` está en español y se le puede mostrar a la persona.
+- En un error de validación (`VALIDATION_ERROR`), `details` dice qué campo falló: `[{ "field": "fecha", "message": "Formato YYYY-MM-DD" }]`.
+- Los códigos están en `back/src/domain/errors/ErrorCode.ts`: `SERVICE_NOT_FOUND`, `APPOINTMENT_NOT_FOUND`, `SLOT_TAKEN`, `ACTIVE_APPOINTMENT_EXISTS`, `APPOINTMENT_NOT_ACTIVE`, `TIME_IN_PAST`, `DATA_POLICY_REQUIRED`, `PHONE_ALREADY_REGISTERED`, `INVALID_CREDENTIALS`, `AUTH_REQUIRED`, `TEAM_ONLY`, `ADMIN_ONLY`, `INVALID_API_KEY`, `ROUTE_NOT_FOUND`, `INTERNAL_ERROR`, entre otros.
+- La única ruta que no usa el sobre es `GET /api/imagenes/:id`, que devuelve la imagen tal cual porque la usa un `<img>`.
+- El front (`front/src/api.ts`) y el agente (`HttpBarberiaApi`) sacan `data` del sobre, y para las listas que necesitan completas piden todas las páginas.
+
+### Rutas
 
 | Ruta | Quién | Para qué |
 |---|---|---|

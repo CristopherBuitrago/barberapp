@@ -93,26 +93,64 @@ export interface SesionGuardada {
 /** Si la sesión vence o la cierran en el back, se avisa para limpiar la del navegador. */
 export const alExpirarSesion = { manejador: () => {} };
 
-async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+/** Todas las respuestas del back vienen en este mismo sobre. */
+interface Respuesta<T> {
+  success: boolean;
+  data: T;
+  pagination?: { page: number; perPage: number; total: number };
+  error: { code: string; message: string; details: unknown } | null;
+}
+
+/** Error del back: el código sirve para decidir, el mensaje para mostrarlo. */
+export class ErrorApi extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+async function enviar<T>(metodo: string, ruta: string, cuerpo?: BodyInit, tipo = "application/json"): Promise<Respuesta<T>> {
   const token = almacen.sesion<SesionGuardada>()?.token;
   const res = await fetch(`${BASE}/api${ruta}`, {
     method: metodo,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    headers: { "Content-Type": tipo, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: cuerpo,
   });
-  if (res.status === 204) return undefined as T;
-  const datos = await res.json().catch(() => ({}));
+  const respuesta = (await res.json().catch(() => null)) as Respuesta<T> | null;
   if (res.status === 401 && token) alExpirarSesion.manejador();
-  if (!res.ok) throw new Error(datos.error ?? `Error ${res.status}`);
-  return datos as T;
+  if (!respuesta?.success) {
+    throw new ErrorApi(respuesta?.error?.code ?? "UNKNOWN", respuesta?.error?.message ?? `Error ${res.status}`, res.status);
+  }
+  return respuesta;
+}
+
+/** Pide algo y devuelve lo que viene en data */
+async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+  const respuesta = await enviar<T>(metodo, ruta, cuerpo === undefined ? undefined : JSON.stringify(cuerpo));
+  return respuesta.data;
+}
+
+const POR_PAGINA = 100;
+
+/** Para las listas que la pantalla necesita completas: pide página por página hasta tenerlas todas */
+async function pedirTodo<T>(ruta: string): Promise<T[]> {
+  const separador = ruta.includes("?") ? "&" : "?";
+  const todo: T[] = [];
+  for (let pagina = 1; ; pagina++) {
+    const respuesta = await enviar<T[]>("GET", `${ruta}${separador}page=${pagina}&perPage=${POR_PAGINA}`);
+    todo.push(...respuesta.data);
+    if (!respuesta.pagination || todo.length >= respuesta.pagination.total || respuesta.data.length === 0) return todo;
+  }
 }
 
 export const api = {
-  servicios: () => pedir<Servicio[]>("GET", "/servicios"),
-  barberos: () => pedir<Barbero[]>("GET", "/barberos"),
+  servicios: () => pedirTodo<Servicio>("/servicios"),
+  barberos: () => pedirTodo<Barbero>("/barberos"),
   disponibilidad: (servicioId: number, fecha: string, barberoId?: number) =>
-    pedir<HoraDisponible[]>(
-      "GET",
+    pedirTodo<HoraDisponible>(
       `/disponibilidad?servicioId=${servicioId}&fecha=${fecha}${barberoId ? `&barberoId=${barberoId}` : ""}`,
     ),
   crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/citas", cita),
@@ -126,34 +164,33 @@ export const apiCuenta = {
     pedir<SesionGuardada & { descuentoPct: number }>("POST", "/cuenta/registro", datos),
   yo: () => pedir<Usuario>("GET", "/cuenta/yo"),
   guardar: (datos: { nombre: string; fechaNacimiento?: string | null }) => pedir<Usuario>("PATCH", "/cuenta/yo", datos),
-  logout: () => pedir<void>("POST", "/cuenta/logout"),
+  logout: () => pedir<null>("POST", "/cuenta/logout"),
   citaActiva: () => pedir<Cita | null>("GET", "/cuenta/yo/cita-activa"),
 };
 
 /** API del panel: va con la sesión del barbero o del admin. */
 export function apiPanel() {
   return {
-    citas: (desde: string, hasta: string) => pedir<Cita[]>("GET", `/panel/citas?desde=${desde}&hasta=${hasta}`),
-    bloqueos: (desde: string, hasta: string) => pedir<Bloqueo[]>("GET", `/panel/bloqueos?desde=${desde}&hasta=${hasta}`),
-    barberos: () => pedir<Barbero[]>("GET", "/panel/barberos"),
-    cambiarEstado: (id: number, estado: EstadoCita) => pedir("PATCH", `/panel/citas/${id}/estado`, { estado }),
+    citas: (desde: string, hasta: string) => pedirTodo<Cita>(`/panel/citas?desde=${desde}&hasta=${hasta}`),
+    bloqueos: (desde: string, hasta: string) => pedirTodo<Bloqueo>(`/panel/bloqueos?desde=${desde}&hasta=${hasta}`),
+    barberos: () => pedirTodo<Barbero>("/panel/barberos"),
+    cambiarEstado: (id: number, estado: EstadoCita) => pedir<Cita>("PATCH", `/panel/citas/${id}/estado`, { estado }),
     crearCita: (cita: NuevaCita) => pedir<Cita>("POST", "/panel/citas", cita),
     bloquear: (b: { barberoId: number; inicio: string; fin: string; motivo: string }) => pedir("POST", "/panel/bloqueos", b),
-    borrarBloqueo: (id: number) => pedir("DELETE", `/panel/bloqueos/${id}`),
-    servicios: () => pedir<ServicioAdmin[]>("GET", "/panel/servicios"),
+    borrarBloqueo: (id: number) => pedir<null>("DELETE", `/panel/bloqueos/${id}`),
+    servicios: () => pedirTodo<ServicioAdmin>("/panel/servicios"),
     crearServicio: (s: DatosServicio) => pedir<ServicioAdmin>("POST", "/panel/servicios", s),
     editarServicio: (id: number, s: Partial<DatosServicio>) =>
       pedir<ServicioAdmin>("PATCH", `/panel/servicios/${id}`, s),
+    /** La imagen va tal cual en el cuerpo, no como JSON */
     subirImagen: async (archivo: File) => {
-      const token = almacen.sesion<SesionGuardada>()?.token;
-      const res = await fetch(`${BASE}/api/panel/imagenes`, {
-        method: "POST",
-        headers: { "Content-Type": archivo.type, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: archivo,
-      });
-      const datos = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(datos.error ?? (res.status === 413 ? "La imagen pesa más de 3 MB" : `Error ${res.status}`));
-      return datos.url as string;
+      try {
+        const respuesta = await enviar<{ url: string }>("POST", "/panel/imagenes", archivo, archivo.type);
+        return respuesta.data.url;
+      } catch (e) {
+        if (e instanceof ErrorApi && e.code === "PAYLOAD_TOO_LARGE") throw new Error("La imagen pesa más de 3 MB");
+        throw e;
+      }
     },
   };
 }

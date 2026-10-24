@@ -9,6 +9,16 @@ import {
   type Servicio,
 } from "./BarberiaApi.js";
 
+/** Todas las respuestas del back vienen en este mismo sobre. */
+interface Respuesta<T> {
+  success: boolean;
+  data: T;
+  pagination?: { page: number; perPage: number; total: number };
+  error: { code: string; message: string; details: unknown } | null;
+}
+
+const POR_PAGINA = 100;
+
 export class HttpBarberiaApi implements BarberiaApi {
   constructor(
     private readonly baseUrl: string,
@@ -16,17 +26,17 @@ export class HttpBarberiaApi implements BarberiaApi {
   ) {}
 
   servicios() {
-    return this.pedir<Servicio[]>("GET", "/api/servicios");
+    return this.pedirTodo<Servicio>("/api/servicios");
   }
 
   barberos() {
-    return this.pedir<Barbero[]>("GET", "/api/barberos");
+    return this.pedirTodo<Barbero>("/api/barberos");
   }
 
   disponibilidad(servicioId: number, fecha: string, barberoId?: number) {
     const q = new URLSearchParams({ servicioId: String(servicioId), fecha });
     if (barberoId) q.set("barberoId", String(barberoId));
-    return this.pedir<HoraDisponible[]>("GET", `/api/disponibilidad?${q}`);
+    return this.pedirTodo<HoraDisponible>(`/api/disponibilidad?${q}`);
   }
 
   crearCita(cita: NuevaCita) {
@@ -51,21 +61,39 @@ export class HttpBarberiaApi implements BarberiaApi {
   agenda(fecha: string, barberoId?: number) {
     const q = new URLSearchParams({ fecha });
     if (barberoId) q.set("barberoId", String(barberoId));
-    return this.pedir<Cita[]>("GET", `/api/interno/agenda?${q}`);
+    return this.pedirTodo<Cita>(`/api/interno/agenda?${q}`);
   }
 
   async bloquear(barberoId: number, inicio: string, fin: string, motivo: string) {
     await this.pedir("POST", "/api/interno/bloqueos", { barberoId, inicio, fin, motivo });
   }
 
-  private async pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+  private async enviar<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<Respuesta<T>> {
     const res = await fetch(`${this.baseUrl}${ruta}`, {
       method: metodo,
       headers: { "x-api-key": this.apiKey, "Content-Type": "application/json" },
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     });
-    const datos = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) throw new ErrorBack(res.status, datos.error ?? `Error ${res.status}`);
-    return datos as T;
+    const respuesta = (await res.json().catch(() => null)) as Respuesta<T> | null;
+    if (!respuesta?.success) {
+      throw new ErrorBack(res.status, respuesta?.error?.code ?? "UNKNOWN", respuesta?.error?.message ?? `Error ${res.status}`);
+    }
+    return respuesta;
+  }
+
+  /** Devuelve lo que viene en data */
+  private async pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+    return (await this.enviar<T>(metodo, ruta, cuerpo)).data;
+  }
+
+  /** Para las listas: pide página por página hasta tenerlas completas */
+  private async pedirTodo<T>(ruta: string): Promise<T[]> {
+    const separador = ruta.includes("?") ? "&" : "?";
+    const todo: T[] = [];
+    for (let pagina = 1; ; pagina++) {
+      const respuesta = await this.enviar<T[]>("GET", `${ruta}${separador}page=${pagina}&perPage=${POR_PAGINA}`);
+      todo.push(...respuesta.data);
+      if (!respuesta.pagination || todo.length >= respuesta.pagination.total || respuesta.data.length === 0) return todo;
+    }
   }
 }
